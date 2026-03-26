@@ -1,0 +1,14 @@
+' ── RapidP HTTP Demo ──
+' Simple HTTP client demo using PHTTP
+$APPTYPE CONSOLE
+
+DIM http AS PHTTP
+
+PRINT "Fetching httpbin.org/get..."
+DIM result AS STRING
+http.timeout = 5000
+result = http.get("https://httpbin.org/get")
+
+PRINT "Status: " + STR$(http.statuscode)
+PRINT "Response:"
+PRINT LEFT$(result, 500)

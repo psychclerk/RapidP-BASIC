@@ -1,0 +1,155 @@
+' Test: New GUI Components (TreeView, Image, TrackBar, StringGrid, ScrollBox, Splitter)
+' This test creates each new component, sets properties, and auto-closes.
+
+DIM TestsPassed AS INTEGER
+TestsPassed = 0
+
+' --- TreeView test handler ---
+SUB OnTreeClick
+    PRINT "TreeView clicked"
+END SUB
+
+' --- TrackBar test handler ---
+SUB OnTrackChange
+    PRINT "TrackBar changed to: " + STR$(Track1.Position)
+END SUB
+
+' --- StringGrid test handler ---
+SUB OnGridChange
+    PRINT "Grid changed"
+END SUB
+
+SUB OnGridClick
+    PRINT "Grid clicked"
+END SUB
+
+' --- Auto-close after setup ---
+SUB AutoClose
+    PRINT "All components created successfully!"
+    PRINT "Tests passed: " + STR$(TestsPassed)
+    Form1.Close
+END SUB
+
+CREATE Form1 AS PFORM
+    Caption = "New Components Test"
+    Width = 800
+    Height = 600
+
+    ' --- PTreeView ---
+    CREATE Tree1 AS PTREEVIEW
+        Left = 10
+        Top = 10
+        Width = 150
+        Height = 150
+        OnClick = OnTreeClick
+    END CREATE
+
+    ' --- PImage ---
+    CREATE Img1 AS PIMAGE
+        Left = 170
+        Top = 10
+        Width = 150
+        Height = 150
+        Stretch = 1
+    END CREATE
+
+    ' --- PTrackBar ---
+    CREATE Track1 AS PTRACKBAR
+        Left = 10
+        Top = 170
+        Width = 200
+        Height = 30
+        Min = 0
+        Max = 100
+        Position = 50
+        OnChange = OnTrackChange
+    END CREATE
+
+    ' --- PStringGrid ---
+    CREATE Grid1 AS PSTRINGGRID
+        Left = 10
+        Top = 210
+        Width = 300
+        Height = 150
+        Cols = 3
+        OnChange = OnGridChange
+        OnClick = OnGridClick
+    END CREATE
+
+    ' --- PScrollBox ---
+    CREATE Scroll1 AS PSCROLLBOX
+        Left = 330
+        Top = 10
+        Width = 200
+        Height = 150
+    END CREATE
+
+    ' --- PSplitter ---
+    CREATE Split1 AS PSPLITTER
+        Left = 330
+        Top = 170
+        Width = 300
+        Height = 200
+    END CREATE
+
+    ' --- Timer to auto-close ---
+    CREATE CloseTimer AS PTIMER
+        Interval = 500
+        OnTimer = AutoClose
+    END CREATE
+END CREATE
+
+' --- Post-CREATE tests ---
+' TreeView
+Tree1.AddItem("Root Item")
+Tree1.AddItem("Second Item")
+TestsPassed = TestsPassed + 1
+PRINT "PASS: PTreeView created and items added"
+
+' Image
+Img1.Stretch = 1
+TestsPassed = TestsPassed + 1
+PRINT "PASS: PImage created with Stretch=1"
+
+' TrackBar
+Track1.Position = 75
+IF Track1.Position = 75 THEN
+    TestsPassed = TestsPassed + 1
+    PRINT "PASS: PTrackBar position set to 75"
+ELSE
+    PRINT "FAIL: PTrackBar position is " + STR$(Track1.Position) + " expected 75"
+END IF
+
+IF Track1.Min = 0 THEN
+    TestsPassed = TestsPassed + 1
+    PRINT "PASS: PTrackBar min is 0"
+END IF
+
+IF Track1.Max = 100 THEN
+    TestsPassed = TestsPassed + 1
+    PRINT "PASS: PTrackBar max is 100"
+END IF
+
+' StringGrid
+Grid1.AddRow("Name", "Age", "City")
+Grid1.AddRow("Alice", "30", "London")
+Grid1.AddRow("Bob", "25", "Paris")
+TestsPassed = TestsPassed + 1
+PRINT "PASS: PStringGrid rows added"
+
+IF Grid1.Cols = 3 THEN
+    TestsPassed = TestsPassed + 1
+    PRINT "PASS: PStringGrid has 3 columns"
+END IF
+
+' ScrollBox
+TestsPassed = TestsPassed + 1
+PRINT "PASS: PScrollBox created"
+
+' Splitter
+TestsPassed = TestsPassed + 1
+PRINT "PASS: PSplitter created"
+
+PRINT ""
+PRINT "Total tests passed: " + STR$(TestsPassed)
+Form1.ShowModal

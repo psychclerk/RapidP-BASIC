@@ -1,0 +1,35 @@
+' ── RapidP Chat Server Demo ──
+' Simple TCP echo server using PServerSocket
+$APPTYPE CONSOLE
+
+DIM server AS PServerSocket
+DIM running AS INTEGER
+
+SUB OnClientConnect(client AS PSocket)
+    PRINT "Client connected: " + client.host
+    client.write "Welcome to RapidP Chat Server!" + CHR$(13) + CHR$(10)
+END SUB
+
+SUB OnClientDisconnect(client AS PSocket)
+    PRINT "Client disconnected: " + client.host
+END SUB
+
+SUB OnDataReceived(client AS PSocket, data AS STRING)
+    PRINT client.host + ": " + data
+    ' Echo back to all clients
+    server.broadcast data
+END SUB
+
+server.host = "0.0.0.0"
+server.port = 9999
+server.onclientconnect = OnClientConnect
+server.onclientdisconnect = OnClientDisconnect
+server.ondatareceived = OnDataReceived
+
+PRINT "Starting chat server on port 9999..."
+server.start
+
+PRINT "Server running. Press Enter to stop."
+INPUT a$
+server.stop
+PRINT "Server stopped."

@@ -1,0 +1,8 @@
+pymysql
+tkhtmlview
+pygame
+pillow
+pyinstaller
+numpy
+matplotlib
+pandas

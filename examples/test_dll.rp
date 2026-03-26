@@ -1,0 +1,7 @@
+$TYPECHECK ON
+
+DECLARE FUNCTION RandomIt LIB "random" ALIAS "randint" (start AS INTEGER, limit AS INTEGER) AS INTEGER
+DECLARE FUNCTION Root LIB "math" ALIAS "sqrt" (number AS DOUBLE) AS DOUBLE
+
+PRINT "Random Number: ", RandomIt(1, 100)
+PRINT "Square Root of 25: ", Root(25.0)
