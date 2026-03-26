@@ -3,11 +3,11 @@
 [![Python 3.10+](https://img.shields.io/badge/Python-3.10%2B-blue.svg)](https://www.python.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
-**RapidP** is a full-featured BASIC-to-Python transpiler and runtime framework. It reads `.rp` source files and produces modern, executable **Python 3** code.
+**RapidP** is an experiment in building a full-featured BASIC-to-Python transpiler and runtime framework. It reads `.rp` BASIC language like source files and produces modern, executable **Python 3** code.
+
+The project currently provides **49+ GUI components** (P-prefixed: `PForm`, `PButton`, `PStringGrid`, …), **100+ built-in functions**, database access, networking, and a self-hosted **Visual IDE** written in RapidP itself. Needs deeper testing, but most of the core features are implemented and functional.
 
 > **Note:** RapidP is *inspired by* and *aims for basic compatibility with* the original RapidQ BASIC language, but it is **not** a clone or drop-in replacement. RapidP extends the language with Python-native components (NumPy, Matplotlib, Pandas), enhanced networking, and modern tooling while preserving as much backward compatibility as practical.
-
-The project provides **49+ GUI components** (P-prefixed: `PForm`, `PButton`, `PStringGrid`, …), **100+ built-in functions**, database access, networking, and a self-hosted **Visual IDE** written in RapidP itself.
 
 ---
 
@@ -552,6 +552,27 @@ python3 compile.py ide.rp -r
 
 ---
 
+## Demo Examples
+
+Three demo applications showcase the Python-specific components with full GUI integration:
+
+| Demo | Components | Description |
+|------|-----------|-------------|
+| `demo_matplotlib.rp` | `PMatPlotLib` + `PImage` | Generates sine/cosine plots and bar charts, displays them inside a `PImage` on a form |
+| `demo_numpy.rp` | `PNumPy` + `PStringGrid` | Array math operations (element-wise, statistics, linspace, dot product) shown in a grid |
+| `demo_pandas.rp` | `PPandas` + `PStringGrid` | Loads CSV data, supports sort, filter, group-by, and summary statistics in a grid |
+
+Run any of them:
+```bash
+python3 compile.py examples/demo_matplotlib.rp -r
+python3 compile.py examples/demo_numpy.rp -r
+python3 compile.py examples/demo_pandas.rp -r
+```
+
+> **Note:** The pandas demo expects `examples/demo_pandas_data.csv` (included) for sample employee data.
+
+---
+
 ## RapidP Syntax Reference
 
 ### Variables & Types
@@ -652,7 +673,7 @@ Form1.ShowModal
 
 ## Test Suite
 
-The project includes a comprehensive test suite with **154+ tests** covering all subsystems:
+The project includes a comprehensive test suite with **170+ tests** covering all subsystems:
 
 ```bash
 # Run all tests

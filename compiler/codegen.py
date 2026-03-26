@@ -1416,6 +1416,14 @@ class CodeGenerator:
             idx = "][".join([self.visit(arg) for arg in node.args])
             return f"{name}[{idx}]"
         
+        # Check if it's a known variable (not a function/sub/module) being indexed
+        # In BASIC, array access and function calls both use parentheses: arr(i) vs func(i)
+        # If a symbol is declared as a variable/array/component, emit bracket indexing
+        sym = self.symbols.lookup(name)
+        if sym and sym.get('kind') in ('variable', 'array', 'component') and node.args:
+            idx = "][".join([self.visit(arg) for arg in node.args])
+            return f"{name}[{idx}]"
+        
         # Validate FUNCTION call exists and argument count
         self._check_call_exists(name, len(node.args), node)
             
