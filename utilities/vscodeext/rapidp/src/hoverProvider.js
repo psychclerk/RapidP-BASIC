@@ -1,5 +1,6 @@
 const vscode = require('vscode');
 const { COMPONENT_REGISTRY, BUILTIN_FUNCTIONS, KEYWORDS, TYPE_KEYWORDS, DIRECTIVES } = require('./languageData');
+const { parseUserTypes, resolveVariableType } = require('./typeParser');
 
 class RapidPHoverProvider {
     provideHover(document, position) {
@@ -29,6 +30,12 @@ class RapidPHoverProvider {
             return this._hoverComponent(word);
         }
 
+        // User-defined TYPE name
+        const userTypes = parseUserTypes(document.getText());
+        if (userTypes[word]) {
+            return this._hoverUserType(word, userTypes[word]);
+        }
+
         // Builtin function
         const builtin = BUILTIN_FUNCTIONS.find(f => f.name === word || f.name === word + '$');
         if (builtin) {
@@ -50,11 +57,18 @@ class RapidPHoverProvider {
 
         // User-defined component variable — show its type
         const compType = this._resolveComponentType(document, word);
-        if (compType && COMPONENT_REGISTRY[compType]) {
-            const md = new vscode.MarkdownString();
-            md.appendMarkdown(`**${word}** — \`${compType}\`\n\n`);
-            md.appendMarkdown(`*Created component. Hover the type name for details.*`);
-            return new vscode.Hover(md);
+        if (compType) {
+            if (COMPONENT_REGISTRY[compType]) {
+                const md = new vscode.MarkdownString();
+                md.appendMarkdown(`**${word}** — \`${compType}\`\n\n`);
+                md.appendMarkdown(`*Created component. Hover the type name for details.*`);
+                return new vscode.Hover(md);
+            }
+            // User-defined TYPE instance
+            const uTypes = parseUserTypes(document.getText());
+            if (uTypes[compType]) {
+                return this._hoverUserTypeInstance(word, compType, uTypes[compType]);
+            }
         }
 
         return null;
@@ -70,26 +84,52 @@ class RapidPHoverProvider {
     }
 
     _hoverMember(document, varName, member) {
-        const compType = this._resolveComponentType(document, varName);
-        if (!compType || !COMPONENT_REGISTRY[compType]) return null;
-        const comp = COMPONENT_REGISTRY[compType];
-        const memberLower = member.toLowerCase();
+        const text = document.getText();
+        const compType = resolveVariableType(text, varName);
+        if (!compType) return null;
 
-        if (comp.props.includes(memberLower)) {
-            return new vscode.Hover(
-                new vscode.MarkdownString(`**${member}** — *property* of \`${compType}\``)
-            );
+        // Built-in component
+        const comp = COMPONENT_REGISTRY[compType];
+        if (comp) {
+            const memberLower = member.toLowerCase();
+            if (comp.props.includes(memberLower)) {
+                return new vscode.Hover(
+                    new vscode.MarkdownString(`**${member}** — *property* of \`${compType}\``)
+                );
+            }
+            if (comp.methods.includes(memberLower)) {
+                return new vscode.Hover(
+                    new vscode.MarkdownString(`**${member}** — *method* of \`${compType}\``)
+                );
+            }
+            if (comp.events.includes(memberLower)) {
+                return new vscode.Hover(
+                    new vscode.MarkdownString(`**${member}** — *event* of \`${compType}\`\n\nAssign a SUB name to handle this event.`)
+                );
+            }
+            return null;
         }
-        if (comp.methods.includes(memberLower)) {
-            return new vscode.Hover(
-                new vscode.MarkdownString(`**${member}** — *method* of \`${compType}\``)
-            );
+
+        // User-defined TYPE
+        const userTypes = parseUserTypes(text);
+        const udt = userTypes[compType];
+        if (udt) {
+            const memberUpper = member.toUpperCase();
+            const field = udt.fields.find(f => f.name.toUpperCase() === memberUpper);
+            if (field) {
+                return new vscode.Hover(
+                    new vscode.MarkdownString(`**${field.name}** — *field* of \`${compType}\`\n\n\`${field.name} AS ${field.type}${field.isArray ? '()' : ''}\``)
+                );
+            }
+            const method = udt.methods.find(m => m.name.toUpperCase() === memberUpper);
+            if (method) {
+                const sig = method.params ? `${method.name}(${method.params})` : `${method.name}()`;
+                return new vscode.Hover(
+                    new vscode.MarkdownString(`**${method.name}** — *${method.kind.toLowerCase()}* of \`${compType}\`\n\n\`${sig}\``)
+                );
+            }
         }
-        if (comp.events.includes(memberLower)) {
-            return new vscode.Hover(
-                new vscode.MarkdownString(`**${member}** — *event* of \`${compType}\`\n\nAssign a SUB name to handle this event.`)
-            );
-        }
+
         return null;
     }
 
@@ -130,17 +170,44 @@ class RapidPHoverProvider {
     }
 
     _resolveComponentType(document, varName) {
-        const upper = varName.toUpperCase();
-        const text = document.getText();
-        // CREATE varName AS PTYPE
-        const createRe = new RegExp(`CREATE\\s+${upper}\\s+AS\\s+(P\\w+|Q\\w+)`, 'im');
-        const m1 = text.match(createRe);
-        if (m1) return m1[1].toUpperCase();
-        // DIM varName AS PTYPE
-        const dimRe = new RegExp(`DIM\\s+${upper}\\s+AS\\s+(P\\w+|Q\\w+)`, 'im');
-        const m2 = text.match(dimRe);
-        if (m2) return m2[1].toUpperCase();
-        return null;
+        return resolveVariableType(document.getText(), varName);
+    }
+
+    _hoverUserType(name, udt) {
+        const md = new vscode.MarkdownString();
+        md.appendMarkdown(`**TYPE ${name}**`);
+        if (udt.extends) {
+            md.appendMarkdown(` EXTENDS \`${udt.extends}\``);
+        }
+        md.appendMarkdown(`\n\n`);
+        if (udt.fields.length) {
+            md.appendMarkdown(`**Fields:**\n`);
+            for (const f of udt.fields) {
+                md.appendMarkdown(`- \`${f.name} AS ${f.type}${f.isArray ? '()' : ''}\`\n`);
+            }
+            md.appendMarkdown(`\n`);
+        }
+        if (udt.methods.length) {
+            md.appendMarkdown(`**Methods:**\n`);
+            for (const m of udt.methods) {
+                const sig = m.params ? `${m.name}(${m.params})` : `${m.name}()`;
+                md.appendMarkdown(`- \`${m.kind} ${sig}\`\n`);
+            }
+        }
+        return new vscode.Hover(md);
+    }
+
+    _hoverUserTypeInstance(varName, typeName, udt) {
+        const md = new vscode.MarkdownString();
+        md.appendMarkdown(`**${varName}** — \`${typeName}\`\n\n`);
+        const memberNames = [
+            ...udt.fields.map(f => f.name),
+            ...udt.methods.filter(m => m.kind !== 'CONSTRUCTOR').map(m => m.name)
+        ];
+        if (memberNames.length) {
+            md.appendMarkdown(`**Members:** ${memberNames.join(', ')}`);
+        }
+        return new vscode.Hover(md);
     }
 }
 

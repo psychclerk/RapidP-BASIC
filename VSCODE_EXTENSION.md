@@ -50,13 +50,16 @@ What gets highlighted:
 
 The completion engine (`src/completionProvider.js`) analyses the cursor context in real time and provides different suggestions depending on where you are in the code:
 
-- **Dot completion** — Type a variable name followed by `.` and the extension looks up the variable's component type (from its `CREATE` or `DIM` statement), then shows only the properties, methods, and events that belong to that specific component. For example, typing `myButton.` on a `PBUTTON` variable shows `caption`, `width`, `onclick`, `setfocus`, etc.
+- **Dot completion** — Type a variable name followed by `.` and the extension looks up the variable's type (from its `CREATE` or `DIM` statement), then shows only the members that belong to that specific type. This works for both **built-in GUI components** and **user-defined TYPEs**.
+  - *Built-in components:* typing `myButton.` on a `PBUTTON` variable shows `caption`, `width`, `onclick`, `setfocus`, etc.
+  - *User-defined TYPEs:* typing `r.` on a `DIM r AS Rect` variable (where `Rect` is a TYPE you defined) shows all of `Rect`'s fields, SUBs, FUNCTIONs, and PROPERTYs. Fields appear as field-type completions and methods appear with call-signature snippets.
+  - *Inheritance:* if your TYPE uses `EXTENDS`, the extension resolves the full inheritance chain and includes parent members in the completion list.
 
 - **WITH block completion** — Inside a `WITH myForm ... END WITH` block, typing `.` automatically resolves `myForm`'s type and shows its members. No need to repeat the variable name.
 
 - **CREATE block completion** — Inside a `CREATE myEdit AS PEDIT ... END CREATE` block, the extension offers the component's properties (with `= ` appended for quick assignment), methods, and events.
 
-- **Type completion** — After `DIM x AS` or `CREATE x AS`, the extension lists all available data types or component types, respectively.
+- **Type completion** — After `DIM x AS` or `CREATE x AS`, the extension lists all available data types, component types, and user-defined TYPE names.
 
 - **Directive completion** — After typing `$`, all compiler directives are suggested with descriptions.
 
@@ -68,10 +71,13 @@ The hover provider (`src/hoverProvider.js`) shows inline documentation when you 
 
 - **Keywords** — Each keyword shows a brief description and typical syntax pattern. For example, hovering `FOR` shows: *"Counted loop. Syntax: FOR var = start TO end [STEP n] ... NEXT"*.
 - **Component types** — Hovering a type like `PSTRINGGRID` displays all of its properties, methods, and events in categorised lists.
+- **User-defined TYPEs** — Hovering a TYPE name (e.g., `Rect`) shows the full type definition: all fields with their types, all SUBs, FUNCTIONs, CONSTRUCTORs, and PROPERTYs with their signatures, and the parent type if `EXTENDS` is used.
+- **User-defined TYPE members** — Hovering a member like `r.Left` (where `r` is a `Rect`) shows whether it's a field or method, its type or signature, and which TYPE it belongs to.
+- **User-defined TYPE instances** — Hovering a variable like `r` (where `r` is a `DIM r AS Rect`) shows the variable's type and lists all available members.
 - **Built-in functions** — Shows the function signature as a code block plus a description. For example, hovering `MID$` shows: `MID$(str, start [, length])` — *"Returns substring from position"*.
 - **Data types** — Shows the type name and what Python type it maps to (e.g., `DOUBLE` → *"Double-precision float"*).
 - **Directives** — Shows the directive's purpose (e.g., `$APPTYPE` → *"Set application type: GUI, CONSOLE, or CGI"*).
-- **User variables** — If you hover a variable that was created with `CREATE`, it shows the variable name and its component type.
+- **User variables** — If you hover a variable that was created with `CREATE`, it shows the variable name and its component type. If it's an instance of a user-defined TYPE, it shows the type name and its members.
 
 ### Signature Help
 
@@ -192,10 +198,15 @@ utilities/vscodeext/rapidp/
     │                                     # built-in functions, keywords, types, directives
     ├── completionProvider.js             # Context-aware autocomplete engine
     │                                     # (dot, WITH, CREATE, directive, type, general)
+    │                                     # Supports both built-in and user-defined types
     ├── hoverProvider.js                  # Hover-to-see-docs for all language elements
+    │                                     # including user-defined TYPE definitions
     ├── signatureProvider.js              # Function parameter hints on typing "("
-    └── symbolProvider.js                 # Document outline: SUBs, FUNCTIONs, TYPEs,
-                                          # CREATE blocks, CONSTs, DIM variables
+    ├── symbolProvider.js                 # Document outline: SUBs, FUNCTIONs, TYPEs,
+    │                                     # CREATE blocks, CONSTs, DIM variables
+    └── typeParser.js                     # Shared parser for user-defined TYPE blocks:
+                                          # extracts fields, SUBs, FUNCTIONs, PROPERTYs,
+                                          # CONSTRUCTORs, and resolves EXTENDS inheritance
 ```
 
 **How it works:**
@@ -204,7 +215,8 @@ utilities/vscodeext/rapidp/
 2. The TextMate grammar handles all syntax highlighting passively — no JavaScript needed.
 3. The four provider classes (`completionProvider`, `hoverProvider`, `signatureProvider`, `symbolProvider`) are registered with the VS Code language API and respond to editor events.
 4. All providers share a single language database (`languageData.js`) containing the full RapidP component registry, built-in function catalogue, keyword list, type definitions, and directive definitions — all extracted directly from the RapidP compiler source code.
-5. The compile commands invoke `compile.py` in a VS Code terminal, passing the active file path and configured flags.
+5. A shared `typeParser.js` module scans the document for `TYPE ... END TYPE` blocks on demand and extracts fields, methods, constructors, properties, and inheritance (`EXTENDS`). Both the completion and hover providers use this when a variable's type is not found in the built-in component registry.
+6. The compile commands invoke `compile.py` in a VS Code terminal, passing the active file path and configured flags.
 6. The diagnostic validator runs on save/open and pushes warnings to VS Code's Problems panel.
 
 ---
@@ -319,7 +331,6 @@ No additional npm packages or native dependencies are required. The extension is
 ## Known Limitations
 
 - Diagnostics are lightweight (block matching and string checking only). Full semantic analysis (undefined variables, type mismatches) is handled by the compiler itself — use `Ctrl+Shift+B` to get full compiler diagnostics.
-- Autocomplete for user-defined TYPE members is not yet implemented — the extension resolves built-in component types but not custom TYPE fields.
 - The extension does not include a debugger. Run/debug is handled by compiling to Python and using Python's debugging tools.
 
 ---

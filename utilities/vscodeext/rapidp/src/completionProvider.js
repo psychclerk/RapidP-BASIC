@@ -1,5 +1,6 @@
 const vscode = require('vscode');
 const { COMPONENT_REGISTRY, BUILTIN_FUNCTIONS, KEYWORDS, TYPE_KEYWORDS, DIRECTIVES } = require('./languageData');
+const { parseUserTypes, resolveVariableType } = require('./typeParser');
 
 class RapidPCompletionProvider {
     provideCompletionItems(document, position, token, context) {
@@ -24,7 +25,7 @@ class RapidPCompletionProvider {
 
         // AS type completion
         if (linePrefix.match(/\bAS\s+\w*$/i)) {
-            return this._getTypeCompletions();
+            return this._getTypeCompletions(document);
         }
 
         // CREATE ... AS component type completion
@@ -44,34 +45,63 @@ class RapidPCompletionProvider {
 
     _getComponentMemberCompletions(document, varName) {
         const items = [];
-        const compType = this._resolveComponentType(document, varName);
-        if (compType) {
-            const registry = COMPONENT_REGISTRY[compType.toUpperCase()];
-            if (registry) {
-                // Properties
-                for (const prop of registry.props) {
-                    const item = new vscode.CompletionItem(prop, vscode.CompletionItemKind.Property);
-                    item.detail = `(property) ${compType}.${prop}`;
-                    item.sortText = '0' + prop;
-                    items.push(item);
+        const text = document.getText();
+        const typeName = resolveVariableType(text, varName);
+        if (!typeName) return items;
+
+        // Check built-in component registry first
+        const registry = COMPONENT_REGISTRY[typeName];
+        if (registry) {
+            for (const prop of registry.props) {
+                const item = new vscode.CompletionItem(prop, vscode.CompletionItemKind.Property);
+                item.detail = `(property) ${typeName}.${prop}`;
+                item.sortText = '0' + prop;
+                items.push(item);
+            }
+            for (const method of registry.methods) {
+                const item = new vscode.CompletionItem(method, vscode.CompletionItemKind.Method);
+                item.detail = `(method) ${typeName}.${method}()`;
+                item.insertText = new vscode.SnippetString(method + '($0)');
+                item.sortText = '1' + method;
+                items.push(item);
+            }
+            for (const event of registry.events) {
+                const item = new vscode.CompletionItem(event, vscode.CompletionItemKind.Event);
+                item.detail = `(event) ${typeName}.${event}`;
+                item.sortText = '2' + event;
+                items.push(item);
+            }
+            return items;
+        }
+
+        // Check user-defined TYPEs
+        const userTypes = parseUserTypes(text);
+        const udt = userTypes[typeName];
+        if (udt) {
+            for (const field of udt.fields) {
+                const item = new vscode.CompletionItem(field.name, vscode.CompletionItemKind.Field);
+                item.detail = `(field) ${field.type}${field.isArray ? '()' : ''}`;
+                item.documentation = `${typeName}.${field.name} AS ${field.type}`;
+                item.sortText = '0' + field.name;
+                items.push(item);
+            }
+            for (const method of udt.methods) {
+                if (method.kind === 'CONSTRUCTOR') continue;
+                const kind = method.kind === 'FUNCTION'
+                    ? vscode.CompletionItemKind.Function
+                    : vscode.CompletionItemKind.Method;
+                const item = new vscode.CompletionItem(method.name, kind);
+                item.detail = `(${method.kind.toLowerCase()}) ${method.name}(${method.params})`;
+                if (method.params) {
+                    item.insertText = new vscode.SnippetString(method.name + '($0)');
+                } else {
+                    item.insertText = method.name;
                 }
-                // Methods
-                for (const method of registry.methods) {
-                    const item = new vscode.CompletionItem(method, vscode.CompletionItemKind.Method);
-                    item.detail = `(method) ${compType}.${method}()`;
-                    item.insertText = new vscode.SnippetString(method + '($0)');
-                    item.sortText = '1' + method;
-                    items.push(item);
-                }
-                // Events
-                for (const event of registry.events) {
-                    const item = new vscode.CompletionItem(event, vscode.CompletionItemKind.Event);
-                    item.detail = `(event) ${compType}.${event}`;
-                    item.sortText = '2' + event;
-                    items.push(item);
-                }
+                item.sortText = '1' + method.name;
+                items.push(item);
             }
         }
+
         return items;
     }
 
@@ -147,7 +177,7 @@ class RapidPCompletionProvider {
         });
     }
 
-    _getTypeCompletions() {
+    _getTypeCompletions(document) {
         const items = [];
         for (const t of TYPE_KEYWORDS) {
             const item = new vscode.CompletionItem(t.name, vscode.CompletionItemKind.TypeParameter);
@@ -160,6 +190,15 @@ class RapidPCompletionProvider {
             const item = new vscode.CompletionItem(displayName, vscode.CompletionItemKind.Class);
             item.detail = `GUI component type`;
             items.push(item);
+        }
+        // User-defined TYPEs
+        if (document) {
+            const userTypes = parseUserTypes(document.getText());
+            for (const [name] of Object.entries(userTypes)) {
+                const item = new vscode.CompletionItem(name, vscode.CompletionItemKind.Struct);
+                item.detail = '(user-defined type)';
+                items.push(item);
+            }
         }
         return items;
     }
@@ -279,28 +318,23 @@ class RapidPCompletionProvider {
             }
         }
 
+        // User-defined TYPE names (for use in DIM ... AS)
+        const userTypes = parseUserTypes(text);
+        for (const [typeName] of Object.entries(userTypes)) {
+            if (!seen.has(typeName)) {
+                seen.add(typeName);
+                const item = new vscode.CompletionItem(typeName, vscode.CompletionItemKind.Struct);
+                item.detail = '(user-defined type)';
+                item.sortText = '2' + typeName;
+                items.push(item);
+            }
+        }
+
         return items;
     }
 
     _resolveComponentType(document, varName) {
-        const text = document.getText();
-        const upper = varName.toUpperCase();
-        
-        // Check CREATE statements
-        const createPattern = new RegExp(`\\bCREATE\\s+${this._escapeRegex(varName)}\\s+AS\\s+(\\w+)`, 'i');
-        const createMatch = text.match(createPattern);
-        if (createMatch) return createMatch[1];
-
-        // Check DIM statements
-        const dimPattern = new RegExp(`\\bDIM\\s+${this._escapeRegex(varName)}\\s+AS\\s+(\\w+)`, 'i');
-        const dimMatch = text.match(dimPattern);
-        if (dimMatch) return dimMatch[1];
-
-        return null;
-    }
-
-    _escapeRegex(string) {
-        return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        return resolveVariableType(document.getText(), varName);
     }
 
     _formatComponentName(upperName) {
