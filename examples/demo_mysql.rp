@@ -64,8 +64,8 @@ END SUB
 SUB InitDB
     IF MySQL.Connect() = 1 THEN
         PRINT "Connected successfully to MySQL!"
-        MySQL.Query("CREATE DATABASE IF NOT EXISTS rapidpdevtestdb")
-        MySQL.SelectDB("rapidpdevtestdb")
+        MySQL.Query("CREATE DATABASE IF NOT EXISTS rapidqdevtestdb")
+        MySQL.SelectDB("rapidqdevtestdb")
         
         MySQL.Query("SHOW TABLES LIKE 'Users'")
         IF MySQL.FetchRow() = 0 THEN
@@ -73,7 +73,7 @@ SUB InitDB
         END IF
         LoadData()
     ELSE
-        PRINT "Failed to connect to MySQL"
+        SHOWMESSAGE("Failed to connect to MySQL. Please check your connection settings.")
     END IF
 END SUB
 
