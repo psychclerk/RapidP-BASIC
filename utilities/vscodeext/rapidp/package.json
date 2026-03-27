@@ -1,0 +1,125 @@
+{
+  "name": "rapidp",
+  "displayName": "RapidP",
+  "description": "Full language support for RapidP (.rp) — BASIC-to-Python transpiler. Syntax highlighting, autocomplete, hover docs, snippets, and compile integration.",
+  "version": "1.0.0",
+  "publisher": "rapidp",
+  "license": "MIT",
+  "engines": {
+    "vscode": "^1.75.0"
+  },
+  "categories": [
+    "Programming Languages",
+    "Snippets",
+    "Linters"
+  ],
+  "keywords": [
+    "rapidp",
+    "basic",
+    "transpiler",
+    "rapidq",
+    "gui"
+  ],
+  "icon": "images/icon.png",
+  "activationEvents": [
+    "onLanguage:rapidp"
+  ],
+  "main": "./src/extension.js",
+  "contributes": {
+    "languages": [
+      {
+        "id": "rapidp",
+        "aliases": [
+          "RapidP",
+          "rapidp",
+          "rp"
+        ],
+        "extensions": [
+          ".rp"
+        ],
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "rapidp",
+        "scopeName": "source.rapidp",
+        "path": "./syntaxes/rapidp.tmLanguage.json"
+      }
+    ],
+    "snippets": [
+      {
+        "language": "rapidp",
+        "path": "./snippets/rapidp.json"
+      }
+    ],
+    "commands": [
+      {
+        "command": "rapidp.compile",
+        "title": "RapidP: Compile Current File",
+        "icon": "$(play)"
+      },
+      {
+        "command": "rapidp.compileAndRun",
+        "title": "RapidP: Compile and Run",
+        "icon": "$(debug-start)"
+      },
+      {
+        "command": "rapidp.compileToExe",
+        "title": "RapidP: Build Standalone Executable"
+      }
+    ],
+    "keybindings": [
+      {
+        "command": "rapidp.compile",
+        "key": "ctrl+shift+b",
+        "mac": "cmd+shift+b",
+        "when": "editorLangId == rapidp"
+      },
+      {
+        "command": "rapidp.compileAndRun",
+        "key": "f5",
+        "mac": "f5",
+        "when": "editorLangId == rapidp"
+      }
+    ],
+    "menus": {
+      "editor/title": [
+        {
+          "command": "rapidp.compileAndRun",
+          "when": "editorLangId == rapidp",
+          "group": "navigation"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "RapidP",
+      "properties": {
+        "rapidp.compilerPath": {
+          "type": "string",
+          "default": "",
+          "description": "Path to compile.py. Leave empty to auto-detect from workspace."
+        },
+        "rapidp.pythonPath": {
+          "type": "string",
+          "default": "python3",
+          "description": "Path to Python 3 interpreter."
+        },
+        "rapidp.runAfterCompile": {
+          "type": "boolean",
+          "default": true,
+          "description": "Automatically run the compiled file after compilation."
+        },
+        "rapidp.encoding": {
+          "type": "string",
+          "default": "utf-8",
+          "enum": [
+            "utf-8",
+            "latin-1"
+          ],
+          "description": "Source file encoding for the compiler."
+        }
+      }
+    }
+  }
+}
