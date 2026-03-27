@@ -371,11 +371,13 @@ class PPandas:
 
     def groupby(self, column, agg="sum"):
         if self._df is not None:
-            grouped = self._df.groupby(str(column))
-            if agg == "sum":
-                self._df = grouped.sum().reset_index()
-            elif agg == "mean":
-                self._df = grouped.mean().reset_index()
+            col_name = str(column)
+            grouped = self._df.groupby(col_name)
+            if agg in ("sum", "mean"):
+                # Select only numeric columns to avoid string dtype errors
+                numeric_cols = self._df.select_dtypes(include="number").columns.tolist()
+                keep_cols = [col_name] + numeric_cols if col_name not in numeric_cols else numeric_cols
+                self._df = self._df[keep_cols].groupby(col_name).agg(agg).reset_index()
             elif agg == "count":
                 self._df = grouped.count().reset_index()
             elif agg == "min":
