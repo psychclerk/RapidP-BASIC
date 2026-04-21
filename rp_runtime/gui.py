@@ -739,6 +739,9 @@ class PLabel(PWidget):
          p_widget = parent.widget if parent else get_root()
          self._alignment = 0  # 0=left, 1=center, 2=right
          self._multiline = 0
+         self._fontbold = False
+         self._fontitalic = False
+         self._fontunderline = False
          self.widget = tk.Label(p_widget, text=self.caption, anchor='w')
          self.widget.place(x=self.left, y=self.top, width=self.width, height=self.height)
 
@@ -765,6 +768,33 @@ class PLabel(PWidget):
          self._multiline = int(value)
          if self._multiline:
              self.widget.config(wraplength=self.width - 5)
+     
+     @property
+     def fontbold(self): return self._fontbold
+     @fontbold.setter
+     def fontbold(self, value):
+         self._fontbold = bool(value)
+         self._update_font()
+     
+     @property
+     def fontitalic(self): return self._fontitalic
+     @fontitalic.setter
+     def fontitalic(self, value):
+         self._fontitalic = bool(value)
+         self._update_font()
+     
+     @property
+     def fontunderline(self): return self._fontunderline
+     @fontunderline.setter
+     def fontunderline(self, value):
+         self._fontunderline = bool(value)
+         self._update_font()
+     
+     def _update_font(self):
+         weight = 'bold' if self._fontbold else 'normal'
+         slant = 'italic' if self._fontitalic else 'roman'
+         underline = 1 if self._fontunderline else 0
+         self.widget.config(font=(self.fontname or 'TkDefaultFont', self.fontsize or 9, weight, slant), underline=underline)
 
 class PEdit(PWidget):
     def __init__(self, parent=None):
@@ -1167,12 +1197,22 @@ class PTabControl(PWidget):
         self.widget = ttk.Notebook(p_widget)
         self.widget.place(x=self.left, y=self.top, width=self.width, height=self.height)
         self._tabs = []
+        self._tab_names = []
 
     def addtabs(self, *args):
         for name in args:
             frame = tk.Frame(self.widget)
             self.widget.add(frame, text=name)
             self._tabs.append(frame)
+            self._tab_names.append(name)
+
+    def addtab(self, name):
+        """Add a single tab and return its frame."""
+        frame = tk.Frame(self.widget)
+        self.widget.add(frame, text=name)
+        self._tabs.append(frame)
+        self._tab_names.append(name)
+        return frame
 
     def tab(self, index):
         """Return the tab frame at index so children can parent to it."""
@@ -1180,6 +1220,13 @@ class PTabControl(PWidget):
         if 0 <= idx < len(self._tabs):
             return self._tabs[idx]
         return None
+    
+    def tabname(self, index):
+        """Return the name of the tab at index."""
+        idx = int(index)
+        if 0 <= idx < len(self._tab_names):
+            return self._tab_names[idx]
+        return ""
 
     @property
     def tabindex(self):
@@ -1190,6 +1237,10 @@ class PTabControl(PWidget):
     def tabindex(self, val):
         try: self.widget.select(self._tabs[int(val)])
         except: pass
+    
+    @property
+    def tabcount(self):
+        return len(self._tabs)
 
     @property
     def onchange(self): return self._events.get('onchange')
@@ -1197,6 +1248,37 @@ class PTabControl(PWidget):
     def onchange(self, value):
         self._events['onchange'] = value
         self.widget.bind('<<NotebookTabChanged>>', lambda e: self.trigger_event('onchange'))
+
+class PTabItem:
+    """PTabItem - Represents a tab page within a PTabControl.
+    
+    This is a helper class used during construction to allow nested CREATE blocks.
+    The actual tab is created by PTabControl.addtab().
+    """
+    def __init__(self, parent=None, caption="Tab"):
+        self._parent = parent
+        self._caption = caption
+        self._frame = None
+        if parent and hasattr(parent, 'addtab'):
+            self._frame = parent.addtab(caption)
+    
+    @property
+    def caption(self):
+        return self._caption
+    
+    @caption.setter
+    def caption(self, value):
+        self._caption = value
+        # Update the tab text if possible
+        if self._parent and hasattr(self._parent, 'widget') and self._frame:
+            idx = self._parent._tabs.index(self._frame) if self._frame in self._parent._tabs else -1
+            if idx >= 0:
+                self._parent.widget.tab(idx, text=value)
+    
+    @property
+    def widget(self):
+        """Return the underlying frame widget for parenting other controls."""
+        return self._frame
 
 class PGroupBox(PWidget):
     def __init__(self, parent=None):

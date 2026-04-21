@@ -31,7 +31,7 @@ COMPONENT_REGISTRY = {
     'PLABEL': {
         'props': {'caption', 'width', 'height', 'top', 'left', 'visible', 'enabled', 'font',
                   'fontsize', 'fontcolor', 'color', 'alignment', 'autosize', 'wordwrap', 'transparent',
-                  'hint', 'showhint', 'cursor', 'tag', 'parent'},
+                  'hint', 'showhint', 'cursor', 'tag', 'parent', 'fontbold', 'fontitalic', 'fontunderline'},
         'methods': {'repaint', 'refresh'},
         'events': {'onclick', 'ondblclick', 'onmousedown', 'onmouseup', 'onmousemove'}
     },
@@ -708,6 +708,8 @@ class CodeGenerator:
         'run', 'end', 'fileexists', 'shellwait',
         # Python-side names
         'open_func', 'close_func', 'print_hash',
+        # MsgBox variants
+        'MsgBox', 'msgbox',
     ])
         
     def _emit(self, code: str) -> str:

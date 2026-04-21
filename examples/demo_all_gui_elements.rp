@@ -278,7 +278,7 @@ CREATE MainForm AS PFORM
     END CREATE
     
     ' TabControl
-    CREATE Tabs AS PTABCOROL
+    CREATE Tabs AS PTABCONTROL
         Left = 10
         Top = 240
         Width = 810
