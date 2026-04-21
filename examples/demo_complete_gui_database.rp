@@ -151,15 +151,7 @@ SUB LoadDataIntoListView
         END IF
         
         ' Add row with all columns
-        ListView1.AddRow( _
-            DB.Row(0), _           ' ID
-            DB.Row(1), _           ' First Name
-            DB.Row(2), _           ' Last Name
-            DB.Row(3), _           ' Email
-            DB.Row(4), _           ' Department
-            "$" + DB.Row(5), _     ' Salary
-            isActive               ' Active
-        )
+        ListView1.AddRow(DB.Row(0), DB.Row(1), DB.Row(2), DB.Row(3), DB.Row(4), "$" + DB.Row(5), isActive)
     WEND
 END SUB
 
