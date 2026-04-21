@@ -432,7 +432,7 @@ CREATE MainForm AS PFORM
         CREATE Tab1 AS PTABITEM
             Caption = "Edit Record"
             
-            CREATE EditFrame AS PFRAME
+            CREATE EditFrame AS PGroupBox
                 Left = 5
                 Top = 25
                 Width = 850
