@@ -50,6 +50,28 @@ def _bgr_to_hex(value):
     return None
 
 
+def MsgBox(prompt, title="Message", flags=0):
+    """Display a message box.
+    
+    Args:
+        prompt: Message text
+        title: Window title
+        flags: 0=OK only, 1=Yes/No, 2=Retry/Cancel
+        
+    Returns:
+        1 for OK/Yes/Retry, 0 for No/Cancel
+    """
+    if flags == 1:
+        result = messagebox.askyesno(title, prompt)
+        return 1 if result else 0
+    elif flags == 2:
+        result = messagebox.askretrycancel(title, prompt)
+        return 1 if result else 0
+    else:
+        messagebox.showinfo(title, prompt)
+        return 1
+
+
 import sys as _sys
 _DEFAULT_FONT_FAMILY = "Segoe UI" if _sys.platform == "win32" else "Helvetica"
 _DEFAULT_FONT_SIZE = 9
@@ -715,6 +737,8 @@ class PLabel(PWidget):
      def __init__(self, parent=None):
          super().__init__(parent)
          p_widget = parent.widget if parent else get_root()
+         self._alignment = 0  # 0=left, 1=center, 2=right
+         self._multiline = 0
          self.widget = tk.Label(p_widget, text=self.caption, anchor='w')
          self.widget.place(x=self.left, y=self.top, width=self.width, height=self.height)
 
@@ -724,6 +748,23 @@ class PLabel(PWidget):
      def caption(self, value):
          self._caption = str(value).replace('&', '')
          self.widget.config(text=self._caption)
+     
+     @property
+     def alignment(self): return self._alignment
+     @alignment.setter
+     def alignment(self, value):
+         self._alignment = int(value)
+         anchors = ['w', 'center', 'e']
+         if 0 <= self._alignment < len(anchors):
+             self.widget.config(anchor=anchors[self._alignment])
+     
+     @property
+     def multiline(self): return self._multiline
+     @multiline.setter
+     def multiline(self, value):
+         self._multiline = int(value)
+         if self._multiline:
+             self.widget.config(wraplength=self.width - 5)
 
 class PEdit(PWidget):
     def __init__(self, parent=None):
@@ -1176,6 +1217,13 @@ class PCheckBox(PWidget):
     def checked(self): return self.var.get()
     @checked.setter
     def checked(self, val): self.var.set(bool(val))
+    
+    @property
+    def onchange(self): return self._events.get('onchange')
+    @onchange.setter
+    def onchange(self, value):
+        self._events['onchange'] = value
+        self.widget.bind('<ButtonRelease-1>', lambda e: self.trigger_event('onchange'))
 
 class PRadioButton(PWidget):
     def __init__(self, parent=None):

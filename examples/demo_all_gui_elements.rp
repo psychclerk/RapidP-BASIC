@@ -1,0 +1,399 @@
+' Demo: All GUI Elements Showcase
+' This demonstrates every major GUI component available in RapidP
+
+$TYPECHECK ON
+
+PRINT "RapidP Complete GUI Elements Demo"
+PRINT "=================================="
+PRINT ""
+
+DIM MainForm AS PFORM
+DIM TestsPassed AS INTEGER
+TestsPassed = 0
+
+SUB OnLoad
+    PRINT "Form loaded successfully"
+    PopulateControls()
+END SUB
+
+SUB PopulateControls
+    ' ComboBox
+    Combo1.AddItems "Option 1", "Option 2", "Option 3", "Option 4"
+    Combo1.Text = "Option 1"
+    
+    ' ListBox
+    List1.AddItems "Item A", "Item B", "Item C", "Item D", "Item E"
+    
+    ' ListView with multiple columns
+    ListView1.Clear()
+    ListView1.AddColumn("ID", 50)
+    ListView1.AddColumn("Name", 150)
+    ListView1.AddColumn("Value", 100)
+    ListView1.AddColumn("Status", 100)
+    
+    ListView1.AddRow "1", "Product Alpha", "$99.99", "Active"
+    ListView1.AddRow "2", "Product Beta", "$149.99", "Inactive"
+    ListView1.AddRow "3", "Product Gamma", "$199.99", "Active"
+    ListView1.AddRow "4", "Product Delta", "$249.99", "Pending"
+    
+    ' StringGrid
+    Grid1.Rows = 5
+    Grid1.Cols = 3
+    Grid1.Cells(0, 0) = "Header 1"
+    Grid1.Cells(1, 0) = "Header 2"
+    Grid1.Cells(2, 0) = "Header 3"
+    Grid1.Cells(0, 1) = "Cell 1,1"
+    Grid1.Cells(1, 1) = "Cell 1,2"
+    Grid1.Cells(2, 1) = "Cell 1,3"
+    
+    ' TrackBar
+    Track1.Position = 50
+    
+    ' CheckBox
+    Check1.Checked = 1
+    Check2.Checked = 0
+    
+    ' RadioButton
+    Radio1.Checked = 1
+    Radio2.Checked = 0
+    Radio3.Checked = 0
+    
+    TestsPassed = TestsPassed + 1
+    PRINT "PASS: All controls populated"
+END SUB
+
+SUB OnComboChange
+    PRINT "ComboBox changed to: " + Combo1.Text
+END SUB
+
+SUB OnListClick
+    PRINT "ListBox selected index: " + STR$(List1.ItemIndex)
+END SUB
+
+SUB OnListViewChange
+    DIM idx AS INTEGER
+    idx = ListView1.SelectedIndex
+    IF idx >= 0 THEN
+        PRINT "ListView selected row: " + STR$(idx)
+    END IF
+END SUB
+
+SUB OnTrackChange
+    TrackLabel.Caption = "TrackBar Value: " + STR$(Track1.Position)
+END SUB
+
+SUB OnCheckChange
+    IF Check1.Checked = 1 THEN
+        CheckResult.Caption = "CheckBox is CHECKED"
+    ELSE
+        CheckResult.Caption = "CheckBox is UNCHECKED"
+    END IF
+END SUB
+
+SUB OnRadioClick
+    IF Radio1.Checked = 1 THEN
+        RadioResult.Caption = "Radio 1 selected"
+    ELSEIF Radio2.Checked = 1 THEN
+        RadioResult.Caption = "Radio 2 selected"
+    ELSE
+        RadioResult.Caption = "Radio 3 selected"
+    END IF
+END SUB
+
+SUB OnButtonClick
+    MsgBox "Button was clicked!", "Button Click Event"
+    SOUND(1000, 100)
+END SUB
+
+SUB OnTabChange
+    PRINT "Tab changed to: " + Tabs.Caption
+END SUB
+
+SUB OnTimerTick
+    TimeLabel.Caption = "Current Time: " + TIME$
+END SUB
+
+SUB OnExit
+    MainForm.Close
+END SUB
+
+CREATE MainForm AS PFORM
+    Caption = "RapidP GUI Elements Demo"
+    Width = 850
+    Height = 700
+    Center
+    OnLoad = OnLoad
+    
+    ' Menu
+    CREATE MainMenu AS PMainMenu
+        CREATE FileMenu AS PMenuItem
+            Caption = "&File"
+            CREATE ExitItem AS PMenuItem
+                Caption = "E&xit"
+                OnClick = OnExit
+            END CREATE
+        END CREATE
+        CREATE HelpMenu AS PMenuItem
+            Caption = "&Help"
+            CREATE AboutItem AS PMenuItem
+                Caption = "&About"
+            END CREATE
+        END CREATE
+    END CREATE
+    
+    ' GroupBox for Basic Controls
+    CREATE BasicGroup AS PGROUPBOX
+        Caption = "Basic Controls"
+        Left = 10
+        Top = 30
+        Width = 400
+        Height = 200
+        
+        CREATE Label1 AS PLABEL
+            Caption = "Standard Label:"
+            Left = 10
+            Top = 20
+        END CREATE
+        
+        CREATE Edit1 AS PEDIT
+            Left = 120
+            Top = 18
+            Width = 200
+            Text = "Editable text field"
+        END CREATE
+        
+        CREATE Button1 AS PBUTTON
+            Caption = "Click Me!"
+            Left = 10
+            Top = 50
+            Width = 100
+            OnClick = OnButtonClick
+        END CREATE
+        
+        CREATE ComboLabel AS PLABEL
+            Caption = "ComboBox:"
+            Left = 10
+            Top = 90
+        END CREATE
+        
+        CREATE Combo1 AS PCOMBOBOX
+            Left = 120
+            Top = 88
+            Width = 200
+            OnChange = OnComboChange
+        END CREATE
+        
+        CREATE ListLabel AS PLABEL
+            Caption = "ListBox:"
+            Left = 10
+            Top = 125
+        END CREATE
+        
+        CREATE List1 AS PLISTBOX
+            Left = 120
+            Top = 120
+            Width = 200
+            Height = 60
+            OnClick = OnListClick
+        END CREATE
+    END CREATE
+    
+    ' GroupBox for Selection Controls
+    CREATE SelectGroup AS PGROUPBOX
+        Caption = "Selection Controls"
+        Left = 420
+        Top = 30
+        Width = 400
+        Height = 200
+        
+        CREATE Check1 AS PCHECKBOX
+            Caption = "Enable Feature"
+            Left = 10
+            Top = 20
+            OnChange = OnCheckChange
+        END CREATE
+        
+        CREATE CheckResult AS PLABEL
+            Caption = ""
+            Left = 150
+            Top = 20
+            Width = 200
+        END CREATE
+        
+        CREATE Check2 AS PCHECKBOX
+            Caption = "Another Option"
+            Left = 10
+            Top = 50
+        END CREATE
+        
+        CREATE RadioLabel AS PLABEL
+            Caption = "Radio Buttons:"
+            Left = 10
+            Top = 85
+        END CREATE
+        
+        CREATE Radio1 AS PRADIOBUTTON
+            Caption = "Option 1"
+            Left = 10
+            Top = 110
+            OnClick = OnRadioClick
+        END CREATE
+        
+        CREATE Radio2 AS PRADIOBUTTON
+            Caption = "Option 2"
+            Left = 100
+            Top = 110
+            OnClick = OnRadioClick
+        END CREATE
+        
+        CREATE Radio3 AS PRADIOBUTTON
+            Caption = "Option 3"
+            Left = 200
+            Top = 110
+            OnClick = OnRadioClick
+        END CREATE
+        
+        CREATE RadioResult AS PLABEL
+            Caption = ""
+            Left = 10
+            Top = 145
+            Width = 200
+        END CREATE
+        
+        CREATE TrackLabel AS PLABEL
+            Caption = "TrackBar Value: 50"
+            Left = 10
+            Top = 170
+        END CREATE
+        
+        CREATE Track1 AS PTRACKBAR
+            Left = 150
+            Top = 165
+            Width = 200
+            Min = 0
+            Max = 100
+            Position = 50
+            OnChange = OnTrackChange
+        END CREATE
+    END CREATE
+    
+    ' TabControl
+    CREATE Tabs AS PTABCOROL
+        Left = 10
+        Top = 240
+        Width = 810
+        Height = 300
+        OnChange = OnTabChange
+        
+        CREATE Tab1 AS PTABITEM
+            Caption = "Data View"
+            
+            CREATE ListView1 AS PLISTVIEW
+                Left = 10
+                Top = 30
+                Width = 780
+                Height = 250
+                OnChange = OnListViewChange
+            END CREATE
+        END CREATE
+        
+        CREATE Tab2 AS PTABITEM
+            Caption = "Grid View"
+            
+            CREATE Grid1 AS PSTRINGGRID
+                Left = 10
+                Top = 30
+                Width = 780
+                Height = 250
+            END CREATE
+        END CREATE
+        
+        CREATE Tab3 AS PTABITEM
+            Caption = "Rich Text"
+            
+            CREATE RichEdit1 AS PRICHEDIT
+                Left = 10
+                Top = 30
+                Width = 780
+                Height = 250
+                Text = "This is a rich text editor." + CHR$(10) + _
+                       "You can edit this text." + CHR$(10) + _
+                       "Multiple lines supported!"
+            END CREATE
+        END CREATE
+    END CREATE
+    
+    ' Panel with additional controls
+    CREATE BottomPanel AS PPANEL
+        Left = 10
+        Top = 550
+        Width = 810
+        Height = 80
+        Color = 15789568
+        
+        CREATE TimeLabel AS PLABEL
+            Caption = "Current Time: "
+            Left = 10
+            Top = 10
+            FontSize = 11
+            FontBold = 1
+            Font.Name = "Arial"
+        END CREATE
+        
+        CREATE ProgressBar1 AS PPROGRESSBAR
+            Left = 150
+            Top = 10
+            Width = 200
+            Height = 20
+            Min = 0
+            Max = 100
+            Position = 75
+        END CREATE
+        
+        CREATE ProgressLabel AS PLABEL
+            Caption = "Progress: 75%"
+            Left = 360
+            Top = 10
+        END CREATE
+    END CREATE
+    
+    ' Timer
+    CREATE Timer1 AS PTIMER
+        Interval = 1000
+        OnTimer = OnTimerTick
+    END CREATE
+    
+    ' StatusBar
+    CREATE StatusBar AS PSTATUSBAR
+        SimpleText = "Ready - Demonstrating all GUI elements"
+    END CREATE
+END CREATE
+
+PRINT "GUI Components Demonstrated:"
+PRINT "- PForm (Main window)"
+PRINT "- PMainMenu & PMenuItem (Menu bar)"
+PRINT "- PLabel (Text labels)"
+PRINT "- PEdit (Text input)"
+PRINT "- PButton (Buttons)"
+PRINT "- PGroupBox (Group containers)"
+PRINT "- PComboBox (Dropdown lists)"
+PRINT "- PListBox (List selections)"
+PRINT "- PCheckBox (Boolean toggles)"
+PRINT "- PRadioButton (Single selection)"
+PRINT "- PTrackBar (Slider control)"
+PRINT "- PTabControl & PTabItem (Tabs)"
+PRINT "- PListView (Multi-column lists)"
+PRINT "- PStringGrid (Spreadsheet-like grid)"
+PRINT "- PRichEdit (Rich text editor)"
+PRINT "- PPanel (Container panels)"
+PRINT "- PProgressBar (Progress indicator)"
+PRINT "- PTimer (Timed events)"
+PRINT "- PStatusBar (Status display)"
+PRINT ""
+PRINT "Starting GUI demo..."
+PRINT ""
+
+MainForm.ShowModal
+
+PRINT ""
+PRINT "Demo completed!"

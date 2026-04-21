@@ -1,0 +1,698 @@
+' Demo: Complete GUI Elements Showcase with Multi-Window Database App
+' This demonstrates all major GUI components working together in a real-world database application
+
+$TYPECHECK ON
+
+DIM DB AS PSQLite
+DIM CurrentID AS INTEGER
+DIM MainForm AS PFORM
+DIM DetailForm AS PFORM
+DIM AboutForm AS PFORM
+
+' ============================================================================
+' MAIN FORM EVENT HANDLERS
+' ============================================================================
+
+SUB OnMainLoad
+    ' Initialize database
+    InitDB()
+    LoadDataIntoListView()
+    UpdateStatusBar()
+END SUB
+
+SUB OnExit
+    DB.Close()
+    MainForm.Close
+END SUB
+
+SUB OnAddClick
+    ClearEditFields()
+    CurrentID = 0
+    EditFrame.Visible = 1
+END SUB
+
+SUB OnEditClick
+    DIM idx AS INTEGER
+    idx = ListView1.SelectedIndex
+    IF idx >= 0 THEN
+        LoadRecordIntoEdits(idx)
+        EditFrame.Visible = 1
+    ELSE
+        MsgBox "Please select a record to edit", "Info"
+    END IF
+END SUB
+
+SUB OnDeleteClick
+    DIM idx AS INTEGER
+    idx = ListView1.SelectedIndex
+    IF idx >= 0 AND CurrentID > 0 THEN
+        DIM result AS INTEGER
+        result = MsgBox("Are you sure you want to delete this record?", "Confirm", 1)
+        IF result = 1 THEN
+            DeleteRecord()
+            LoadDataIntoListView()
+            ClearEditFields()
+            EditFrame.Visible = 0
+        END IF
+    ELSE
+        MsgBox "Please select a record to delete", "Info"
+    END IF
+END SUB
+
+SUB OnSaveClick
+    SaveRecord()
+    LoadDataIntoListView()
+    EditFrame.Visible = 0
+    SOUND(1500, 100)
+END SUB
+
+SUB OnCancelClick
+    EditFrame.Visible = 0
+END SUB
+
+SUB OnListViewChange
+    DIM idx AS INTEGER
+    idx = ListView1.SelectedIndex
+    IF idx >= 0 THEN
+        DisplayRecordDetails(idx)
+        UpdateButtonStates()
+    END IF
+END SUB
+
+SUB OnListViewDblClick
+    OnEditClick()
+END SUB
+
+SUB OnRefreshClick
+    LoadDataIntoListView()
+    StatusBar.SimpleText = "Data refreshed at " + TIME$
+    SOUND(1000, 50)
+END SUB
+
+SUB OnSearchClick
+    DIM searchTerm AS STRING
+    searchTerm = SearchEdit.Text
+    IF searchTerm <> "" THEN
+        SearchInListView(searchTerm)
+    END IF
+END SUB
+
+SUB OnShowDetailFormClick
+    ShowDetailWindow()
+END SUB
+
+SUB OnShowAboutClick
+    ShowAboutWindow()
+END SUB
+
+SUB OnTimerTick
+    StatusBar.SimpleText = "RapidP Database Demo | Time: " + TIME$ + " | Date: " + DATE$ + " | Records: " + STR$(ListView1.ItemCount)
+END SUB
+
+' ============================================================================
+' DATABASE FUNCTIONS
+' ============================================================================
+
+SUB InitDB
+    DIM DB_NAME AS STRING
+    DB_NAME = "demo_complete.db"
+    
+    IF DB.Connect(DB_NAME) = 0 THEN
+        PRINT "Creating new SQLite database..."
+    END IF
+    
+    ' Create table if not exists
+    DB.Query("SELECT name FROM sqlite_master WHERE type='table' AND name='employees'")
+    IF DB.FetchRow() = 0 THEN
+        DB.Query("CREATE TABLE employees (id INTEGER PRIMARY KEY AUTOINCREMENT, firstName VARCHAR(50), lastName VARCHAR(50), email VARCHAR(100), department VARCHAR(50), salary DECIMAL(10,2), hireDate DATE, active INTEGER)")
+        ' Insert sample data
+        DB.Query("INSERT INTO employees (firstName, lastName, email, department, salary, hireDate, active) VALUES ('John', 'Smith', 'john@email.com', 'IT', 75000.00, '2023-01-15', 1)")
+        DB.Query("INSERT INTO employees (firstName, lastName, email, department, salary, hireDate, active) VALUES ('Sarah', 'Johnson', 'sarah@email.com', 'HR', 65000.00, '2023-02-20', 1)")
+        DB.Query("INSERT INTO employees (firstName, lastName, email, department, salary, hireDate, active) VALUES ('Mike', 'Williams', 'mike@email.com', 'Sales', 80000.00, '2023-03-10', 1)")
+        DB.Query("INSERT INTO employees (firstName, lastName, email, department, salary, hireDate, active) VALUES ('Emily', 'Brown', 'emily@email.com', 'IT', 72000.00, '2023-04-05', 1)")
+        DB.Query("INSERT INTO employees (firstName, lastName, email, department, salary, hireDate, active) VALUES ('David', 'Jones', 'david@email.com', 'Finance', 85000.00, '2023-05-12', 1)")
+    END IF
+END SUB
+
+SUB LoadDataIntoListView
+    ListView1.Clear()
+    
+    ' Set up columns
+    ListView1.Clear()
+    
+    DB.Query("SELECT id, firstName, lastName, email, department, salary, active FROM employees ORDER BY id")
+    
+    WHILE DB.FetchRow() = 1
+        DIM isActive AS STRING
+        IF VAL(DB.Row(6)) = 1 THEN
+            isActive = "Yes"
+        ELSE
+            isActive = "No"
+        END IF
+        
+        ' Add row with all columns
+        ListView1.AddRow( _
+            DB.Row(0), _           ' ID
+            DB.Row(1), _           ' First Name
+            DB.Row(2), _           ' Last Name
+            DB.Row(3), _           ' Email
+            DB.Row(4), _           ' Department
+            "$" + DB.Row(5), _     ' Salary
+            isActive               ' Active
+        )
+    WEND
+END SUB
+
+SUB LoadRecordIntoEdits(idx AS INTEGER)
+    DB.Query("SELECT id, firstName, lastName, email, department, salary, hireDate, active FROM employees ORDER BY id")
+    DB.RowSeek(idx)
+    IF DB.FetchRow() = 1 THEN
+        CurrentID = VAL(DB.Row(0))
+        FirstNameEdit.Text = DB.Row(1)
+        LastNameEdit.Text = DB.Row(2)
+        EmailEdit.Text = DB.Row(3)
+        DeptComboBox.Text = DB.Row(4)
+        SalaryEdit.Text = DB.Row(5)
+        HireDateEdit.Text = DB.Row(6)
+        ActiveCheck.Checked = VAL(DB.Row(7))
+    END IF
+END SUB
+
+SUB DisplayRecordDetails(idx AS INTEGER)
+    DB.Query("SELECT id, firstName, lastName, email, department, salary, hireDate, active FROM employees ORDER BY id")
+    DB.RowSeek(idx)
+    IF DB.FetchRow() = 1 THEN
+        DetailLabel.Caption = "Viewing: " + DB.Row(1) + " " + DB.Row(2) + _
+                             CHR$(10) + "Email: " + DB.Row(3) + _
+                             CHR$(10) + "Department: " + DB.Row(4) + _
+                             CHR$(10) + "Salary: $" + DB.Row(5) + _
+                             CHR$(10) + "Hired: " + DB.Row(6)
+    END IF
+END SUB
+
+SUB SaveRecord
+    IF CurrentID > 0 THEN
+        ' Update existing record
+        DIM Q AS STRING
+        Q = "UPDATE employees SET firstName='" + FirstNameEdit.Text + _
+            "', lastName='" + LastNameEdit.Text + _
+            "', email='" + EmailEdit.Text + _
+            "', department='" + DeptComboBox.Text + _
+            "', salary=" + SalaryEdit.Text + _
+            "', hireDate='" + HireDateEdit.Text + _
+            "', active=" + STR$(ActiveCheck.Checked) + _
+            " WHERE id=" + STR$(CurrentID)
+        DB.Query(Q)
+    ELSE
+        ' Insert new record
+        DIM Q AS STRING
+        Q = "INSERT INTO employees (firstName, lastName, email, department, salary, hireDate, active) VALUES ('" + _
+            FirstNameEdit.Text + "', '" + _
+            LastNameEdit.Text + "', '" + _
+            EmailEdit.Text + "', '" + _
+            DeptComboBox.Text + "', " + _
+            SalaryEdit.Text + ", '" + _
+            HireDateEdit.Text + "', " + _
+            STR$(ActiveCheck.Checked) + ")"
+        DB.Query(Q)
+    END IF
+END SUB
+
+SUB DeleteRecord
+    IF CurrentID > 0 THEN
+        DIM Q AS STRING
+        Q = "DELETE FROM employees WHERE id=" + STR$(CurrentID)
+        DB.Query(Q)
+        CurrentID = 0
+    END IF
+END SUB
+
+SUB ClearEditFields
+    FirstNameEdit.Text = ""
+    LastNameEdit.Text = ""
+    EmailEdit.Text = ""
+    DeptComboBox.Text = "IT"
+    SalaryEdit.Text = "0"
+    HireDateEdit.Text = DATE$
+    ActiveCheck.Checked = 1
+    CurrentID = 0
+END SUB
+
+SUB UpdateButtonStates
+    ' Enable/disable buttons based on selection
+    IF ListView1.SelectedIndex >= 0 THEN
+        EditBtn.Enabled = 1
+        DeleteBtn.Enabled = 1
+    ELSE
+        EditBtn.Enabled = 0
+        DeleteBtn.Enabled = 0
+    END IF
+END SUB
+
+SUB UpdateStatusBar
+    StatusBar.SimpleText = "Ready - " + STR$(ListView1.ItemCount) + " records loaded"
+END SUB
+
+SUB SearchInListView(term AS STRING)
+    DIM i AS INTEGER
+    DIM found AS INTEGER
+    found = 0
+    
+    FOR i = 0 TO ListView1.ItemCount - 1
+        DIM itemData AS STRING
+        itemData = ListView1.GetItem(i)
+        IF INSTR(UCASE$(itemData), UCASE$(term)) > 0 THEN
+            ListView1.SelectedIndex = i
+            found = 1
+            EXIT FOR
+        END IF
+    NEXT
+    
+    IF found = 0 THEN
+        MsgBox "No records found matching: " + term, "Search Results"
+    END IF
+END SUB
+
+' ============================================================================
+' MULTI-WINDOW FUNCTIONS
+' ============================================================================
+
+SUB ShowDetailWindow
+    ' Show the detail form as modal
+    DetailForm.ShowModal
+END SUB
+
+SUB ShowAboutWindow
+    ' Populate about info
+    AboutVersionLabel.Caption = "Version 1.0.0"
+    AboutBuildLabel.Caption = "Build: " + DATE$ + " " + TIME$
+    AboutDescLabel.Caption = "A complete demonstration of RapidP GUI components" + CHR$(10) + _
+                             "including ListView, ComboBox, CheckBox," + CHR$(10) + _
+                             "TabControl, StringGrid, and multi-window support."
+    
+    ' Show as modal dialog
+    AboutForm.ShowModal
+END SUB
+
+SUB OnCloseDetail
+    DetailForm.Close
+END SUB
+
+SUB OnCloseAbout
+    AboutForm.Close
+END SUB
+
+' ============================================================================
+' CREATE MAIN FORM
+' ============================================================================
+
+CREATE MainForm AS PFORM
+    Caption = "RapidP Complete Database Demo"
+    Width = 900
+    Height = 650
+    Center
+    OnLoad = OnMainLoad
+    
+    ' Menu Bar
+    CREATE MainMenu AS PMainMenu
+        CREATE FileMenu AS PMenuItem
+            Caption = "&File"
+            CREATE ExitItem AS PMenuItem
+                Caption = "E&xit"
+                OnClick = OnExit
+            END CREATE
+        END CREATE
+        CREATE ViewMenu AS PMenuItem
+            Caption = "&View"
+            CREATE DetailItem AS PMenuItem
+                Caption = "&Detail Window"
+                OnClick = OnShowDetailFormClick
+            END CREATE
+        END CREATE
+        CREATE HelpMenu AS PMenuItem
+            Caption = "&Help"
+            CREATE AboutItem AS PMenuItem
+                Caption = "&About"
+                OnClick = OnShowAboutClick
+            END CREATE
+        END CREATE
+    END CREATE
+    
+    ' Toolbar Panel
+    CREATE ToolbarPanel AS PPANEL
+        Top = 0
+        Left = 0
+        Width = 884
+        Height = 50
+        Color = 12632256
+        
+        CREATE AddBtn AS PBUTTON
+            Caption = "&Add New"
+            Left = 10
+            Top = 10
+            Width = 80
+            Height = 30
+            OnClick = OnAddClick
+        END CREATE
+        
+        CREATE EditBtn AS PBUTTON
+            Caption = "&Edit"
+            Left = 100
+            Top = 10
+            Width = 80
+            Height = 30
+            OnClick = OnEditClick
+        END CREATE
+        
+        CREATE DeleteBtn AS PBUTTON
+            Caption = "&Delete"
+            Left = 190
+            Top = 10
+            Width = 80
+            Height = 30
+            OnClick = OnDeleteClick
+        END CREATE
+        
+        CREATE RefreshBtn AS PBUTTON
+            Caption = "&Refresh"
+            Left = 280
+            Top = 10
+            Width = 80
+            Height = 30
+            OnClick = OnRefreshClick
+        END CREATE
+        
+        CREATE DetailWindowBtn AS PBUTTON
+            Caption = "&Detail Window"
+            Left = 370
+            Top = 10
+            Width = 100
+            Height = 30
+            OnClick = OnShowDetailFormClick
+        END CREATE
+    END CREATE
+    
+    ' Search Panel
+    CREATE SearchPanel AS PPANEL
+        Top = 50
+        Left = 0
+        Width = 884
+        Height = 40
+        
+        CREATE SearchLabel AS PLABEL
+            Caption = "Search:"
+            Left = 10
+            Top = 12
+        END CREATE
+        
+        CREATE SearchEdit AS PEDIT
+            Left = 60
+            Top = 10
+            Width = 200
+        END CREATE
+        
+        CREATE SearchBtn AS PBUTTON
+            Caption = "&Find"
+            Left = 270
+            Top = 10
+            Width = 60
+            OnClick = OnSearchClick
+        END CREATE
+    END CREATE
+    
+    ' Main ListView with Data
+    CREATE ListView1 AS PLISTVIEW
+        Top = 90
+        Left = 10
+        Width = 870
+        Height = 300
+        OnChange = OnListViewChange
+        OnDblClick = OnListViewDblClick
+    END CREATE
+    
+    ' Tab Control with additional info
+    CREATE InfoTabs AS PTABCOROL
+        Top = 395
+        Left = 10
+        Width = 870
+        Height = 150
+        
+        CREATE Tab1 AS PTABITEM
+            Caption = "Edit Record"
+            
+            CREATE EditFrame AS PFRAME
+                Left = 5
+                Top = 25
+                Width = 850
+                Height = 110
+                
+                CREATE FirstNameLabel AS PLABEL
+                    Caption = "First Name:"
+                    Left = 10
+                    Top = 10
+                END CREATE
+                
+                CREATE FirstNameEdit AS PEDIT
+                    Left = 100
+                    Top = 8
+                    Width = 150
+                END CREATE
+                
+                CREATE LastNameLabel AS PLABEL
+                    Caption = "Last Name:"
+                    Left = 270
+                    Top = 10
+                END CREATE
+                
+                CREATE LastNameEdit AS PEDIT
+                    Left = 360
+                    Top = 8
+                    Width = 150
+                END CREATE
+                
+                CREATE EmailLabel AS PLABEL
+                    Caption = "Email:"
+                    Left = 10
+                    Top = 40
+                END CREATE
+                
+                CREATE EmailEdit AS PEDIT
+                    Left = 100
+                    Top = 38
+                    Width = 300
+                END CREATE
+                
+                CREATE DeptLabel AS PLABEL
+                    Caption = "Department:"
+                    Left = 10
+                    Top = 70
+                END CREATE
+                
+                CREATE DeptComboBox AS PCOMBOBOX
+                    Left = 100
+                    Top = 68
+                    Width = 150
+                END CREATE
+                
+                CREATE SalaryLabel AS PLABEL
+                    Caption = "Salary:"
+                    Left = 270
+                    Top = 70
+                END CREATE
+                
+                CREATE SalaryEdit AS PEDIT
+                    Left = 360
+                    Top = 68
+                    Width = 100
+                END CREATE
+                
+                CREATE HireDateLabel AS PLABEL
+                    Caption = "Hire Date:"
+                    Left = 480
+                    Top = 70
+                END CREATE
+                
+                CREATE HireDateEdit AS PEDIT
+                    Left = 560
+                    Top = 68
+                    Width = 100
+                END CREATE
+                
+                CREATE ActiveCheck AS PCHECKBOX
+                    Caption = "Active"
+                    Left = 680
+                    Top = 70
+                    Checked = 1
+                END CREATE
+                
+                CREATE SaveBtn AS PBUTTON
+                    Caption = "&Save"
+                    Left = 750
+                    Top = 5
+                    Width = 80
+                    OnClick = OnSaveClick
+                END CREATE
+                
+                CREATE CancelBtn AS PBUTTON
+                    Caption = "&Cancel"
+                    Left = 750
+                    Top = 40
+                    Width = 80
+                    OnClick = OnCancelClick
+                END CREATE
+            END CREATE
+        END CREATE
+        
+        CREATE Tab2 AS PTABITEM
+            Caption = "Statistics"
+            
+            CREATE StatsLabel AS PLABEL
+                Caption = "Employee Statistics will appear here"
+                Left = 20
+                Top = 30
+            END CREATE
+            
+            CREATE StatsGrid AS PSTRINGGRID
+                Left = 20
+                Top = 50
+                Width = 800
+                Height = 80
+                Cols = 2
+                Rows = 4
+            END CREATE
+        END CREATE
+    END CREATE
+    
+    ' Status Bar
+    CREATE StatusBar AS PSTATUSBAR
+        SimpleText = "Initializing..."
+    END CREATE
+    
+    ' Timer for status updates
+    CREATE Timer1 AS PTIMER
+        Interval = 1000
+        OnTimer = OnTimerTick
+    END CREATE
+END CREATE
+
+' ============================================================================
+' CREATE DETAIL FORM (Secondary Window)
+' ============================================================================
+
+CREATE DetailForm AS PFORM
+    Caption = "Employee Details"
+    Width = 400
+    Height = 300
+    Center
+    BorderStyle = 1  ' Dialog border
+    
+    CREATE DetailLabel AS PLABEL
+        Caption = "Select an employee to view details"
+        Left = 20
+        Top = 20
+        Width = 350
+        Height = 100
+        Alignment = 0  ' Center
+    END CREATE
+    
+    CREATE DetailImage AS PIMAGE
+        Left = 150
+        Top = 130
+        Width = 100
+        Height = 100
+    END CREATE
+    
+    CREATE CloseDetailBtn AS PBUTTON
+        Caption = "Close"
+        Left = 160
+        Top = 240
+        Width = 80
+        OnClick = OnCloseDetail
+    END CREATE
+END CREATE
+
+' ============================================================================
+' CREATE ABOUT FORM (Modal Dialog)
+' ============================================================================
+
+CREATE AboutForm AS PFORM
+    Caption = "About RapidP Database Demo"
+    Width = 400
+    Height = 300
+    Center
+    BorderStyle = 1  ' Dialog border
+    Modal = 1
+    
+    CREATE AboutTitle AS PLABEL
+        Caption = "RapidP Database Application"
+        Left = 20
+        Top = 20
+        Width = 350
+        FontSize = 14
+        FontBold = 1
+    END CREATE
+    
+    CREATE AboutVersionLabel AS PLABEL
+        Caption = "Version 1.0.0"
+        Left = 20
+        Top = 50
+    END CREATE
+    
+    CREATE AboutBuildLabel AS PLABEL
+        Caption = "Build: "
+        Left = 20
+        Top = 75
+    END CREATE
+    
+    CREATE AboutDescLabel AS PLABEL
+        Caption = "A demonstration application"
+        Left = 20
+        Top = 100
+        Width = 350
+        Height = 80
+        Multiline = 1
+    END CREATE
+    
+    CREATE AboutCopyright AS PLABEL
+        Caption = "© 2024 RapidP Demo"
+        Left = 20
+        Top = 200
+    END CREATE
+    
+    CREATE CloseAboutBtn AS PBUTTON
+        Caption = "OK"
+        Left = 160
+        Top = 230
+        Width = 80
+        OnClick = OnCloseAbout
+    END CREATE
+END CREATE
+
+' ============================================================================
+' INITIALIZATION
+' ============================================================================
+
+' Populate department combo box
+DeptComboBox.AddItems "IT", "HR", "Sales", "Finance", "Marketing", "Operations"
+
+' Initialize StringGrid with headers
+StatsGrid.Cells(0, 0) = "Statistic"
+StatsGrid.Cells(1, 0) = "Value"
+StatsGrid.Cells(0, 1) = "Total Employees"
+StatsGrid.Cells(0, 2) = "Departments"
+StatsGrid.Cells(0, 3) = "Active"
+
+PRINT "Starting RapidP Complete Database Demo..."
+PRINT "This demo showcases:"
+PRINT "- ListView with multiple columns"
+PRINT "- ComboBox, CheckBox, Edit controls"
+PRINT "- TabControl with multiple tabs"
+PRINT "- StringGrid for displaying tabular data"
+PRINT "- Multi-window support (modal dialogs)"
+PRINT "- Full CRUD database operations"
+PRINT "- Event handling for all controls"
+PRINT ""
+
+MainForm.ShowModal
+
+PRINT "Application closed."
