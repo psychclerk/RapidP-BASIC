@@ -674,6 +674,26 @@ class PForm(PWidget):
         self.trigger_event('onclose')
         self.close()
 
+    # ── OnLoad event for PForm (triggered when form is first shown) ──────────────────────────────────────
+    @property
+    def onload(self): return self._events.get('onload')
+    @onload.setter
+    def onload(self, value):
+        self._events['onload'] = value
+        # Trigger onload once when the form is first shown
+        def _show_wrapper(*args):
+            if not getattr(self, '_onload_triggered', False):
+                self._onload_triggered = True
+                self.trigger_event('onload')
+            self.trigger_event('onshow')
+        # Replace the onshow trigger to also call onload
+        original_show = self.show
+        def new_show():
+            self._visible = True
+            self.widget.deiconify()
+            _show_wrapper()
+        self.show = new_show
+
     # ── OnResize event for PForm ──────────────────────────────────────
     @property
     def onresize(self): return self._events.get('onresize')

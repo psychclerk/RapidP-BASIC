@@ -122,7 +122,7 @@ COMPONENT_REGISTRY = {
     },
     'PTABCONTROL': {
         'props': {'tabindex', 'tabcount', 'width', 'height', 'top', 'left', 'visible', 'enabled',
-                  'font', 'fontsize', 'fontcolor', 'color', 'hint', 'showhint', 'cursor', 'tag', 'parent'},
+                  'font', 'fontsize', 'fontcolor', 'color', 'hint', 'showhint', 'cursor', 'tag', 'parent', 'caption'},
         'methods': {'addtab', 'addtabs', 'deletetab', 'repaint', 'refresh', 'tab'},
         'events': {'onchange', 'onclick'}
     },
