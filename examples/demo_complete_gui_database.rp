@@ -423,7 +423,7 @@ CREATE MainForm AS PFORM
     END CREATE
     
     ' Tab Control with additional info
-    CREATE InfoTabs AS PTABCOROL
+    CREATE InfoTabs AS PTABCONTROL
         Top = 395
         Left = 10
         Width = 870
