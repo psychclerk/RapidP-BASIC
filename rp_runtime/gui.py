@@ -1219,6 +1219,13 @@ class PTabControl(PWidget):
         self._tabs = []
         self._tab_names = []
 
+    @property
+    def caption(self): return getattr(self, '_caption', '')
+    @caption.setter
+    def caption(self, value):
+        # PTabControl doesn't have a caption, but allow setting it to avoid errors
+        self._caption = str(value)
+
     def addtabs(self, *args):
         for name in args:
             frame = tk.Frame(self.widget)
@@ -2215,6 +2222,18 @@ class PStringGrid(PWidget):
 
     @property
     def rows(self): return len(self._data)
+    @rows.setter
+    def rows(self, val):
+        val = int(val)
+        current = len(self._data)
+        if val > current:
+            # Add empty rows
+            for _ in range(val - current):
+                self._data.append([''] * self._cols)
+        elif val < current:
+            # Remove rows
+            self._data = self._data[:val]
+        self._redraw()
 
     @property
     def colwidth(self): return self._col_widths[0] if self._col_widths else 100
