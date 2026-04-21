@@ -2258,6 +2258,29 @@ class PStringGrid(PWidget):
         return self._edit_col if self._edit_col >= 0 else self._selected_col
 
     @property
+    def cells(self):
+        """Return a proxy object that supports cells[row][col] access for both get and set."""
+        class CellsProxy:
+            def __init__(self, grid):
+                self._grid = grid
+            def __getitem__(self, row):
+                class RowProxy:
+                    def __init__(self, grid, row):
+                        self._grid = grid
+                        self._row = row
+                    def __getitem__(self, col):
+                        return self._grid.cell(self._row, col)
+                    def __setitem__(self, col, value):
+                        self._grid.setcell(self._row, col, value)
+                return RowProxy(self._grid, row)
+            def __setitem__(self, row, value):
+                # Allow setting an entire row: grid.cells[row] = ['val1', 'val2', ...]
+                if isinstance(value, (list, tuple)):
+                    for col, val in enumerate(value):
+                        self._grid.setcell(row, col, val)
+        return CellsProxy(self)
+
+    @property
     def ondblclick(self): return self._events.get('ondblclick')
     @ondblclick.setter
     def ondblclick(self, value):
