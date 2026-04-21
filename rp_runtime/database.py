@@ -197,7 +197,7 @@ class PMySQL:
          self._current_field_index = pos - 1
          
     def rowseek(self, row):
-         if 0 <= row < self.rowcount:
+         if 1 <= row <= self.rowcount:
              self._current_row_index = row - 1
 
     def row(self, col_index):
@@ -351,7 +351,7 @@ class PSQLite:
          self._current_field_index = pos - 1
          
     def rowseek(self, row):
-         if 0 <= row < self.rowcount:
+         if 1 <= row <= self.rowcount:
              self._current_row_index = row - 1
 
     def row(self, col_index):

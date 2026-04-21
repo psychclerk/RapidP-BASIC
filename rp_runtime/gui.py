@@ -2410,20 +2410,243 @@ class PProgressBar(PWidget):
         self.widget['maximum'] = val
 
 class PListView(PWidget):
+    """RapidP PListView — multi-column list view for displaying data (like database results).
+    
+    Supports both single-column (list) and multi-column (report/details) modes.
+    Ideal for displaying database query results.
+    """
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.widget = ttk.Treeview(parent.widget if parent else get_root(), show='tree')
-        self.widget.place(x=self.left, y=self.top, width=self.width, height=self.height)
-        self._items = []
-
+        p_widget = parent.widget if parent else get_root()
+        
+        # Create frame to hold treeview and scrollbars
+        self._frame = tk.Frame(p_widget)
+        self._frame.place(x=self.left, y=self.top, width=self.width, height=self.height)
+        
+        # Create Treeview with columns support
+        self.widget = ttk.Treeview(self._frame, show='headings', selectmode='extended')
+        
+        # Add scrollbars
+        self._vsb = ttk.Scrollbar(self._frame, orient='vertical', command=self.widget.yview)
+        self._hsb = ttk.Scrollbar(self._frame, orient='horizontal', command=self.widget.xview)
+        self.widget.configure(yscrollcommand=self._vsb.set, xscrollcommand=self._hsb.set)
+        
+        # Grid layout for treeview and scrollbars
+        self.widget.grid(row=0, column=0, sticky='nsew')
+        self._vsb.grid(row=0, column=1, sticky='ns')
+        self._hsb.grid(row=1, column=0, sticky='ew')
+        
+        # Make the treeview expandable
+        self._frame.grid_rowconfigure(0, weight=1)
+        self._frame.grid_columnconfigure(0, weight=1)
+        
+        self._columns = []  # List of column identifiers
+        self._column_widths = {}  # Map of column id -> width
+        self._items = {}  # Map of iid -> item data
+        self._item_count = 0
+        
+        # Default single column
+        self.addcolumn('Item', 150)
+        
+        # Bind events
+        self.widget.bind('<<TreeviewSelect>>', lambda e: self.trigger_event('onchange'))
+        self.widget.bind('<Double-Button-1>', lambda e: self.trigger_event('ondblclick'))
+        self.widget.bind('<ButtonPress-1>', lambda e: self.trigger_event('onclick'))
+        
+    def _place_widget(self):
+        """Override to handle frame placement."""
+        if self._frame and self._visible:
+            self._frame.place(x=self._left, y=self._top, width=self._width, height=self._height)
+        elif self._frame:
+            self._frame.place_forget()
+    
+    @property
+    def visible(self):
+        return 1 if self._visible else 0
+    @visible.setter
+    def visible(self, value):
+        self._visible = bool(int(value))
+        self._place_widget()
+    
+    def addcolumn(self, header, width=100, anchor='w'):
+        """Add a column to the listview.
+        
+        Args:
+            header: Column header text
+            width: Column width in pixels
+            anchor: Text alignment ('w', 'e', 'c', 'n', 's')
+        """
+        col_id = f'col_{len(self._columns)}'
+        self._columns.append(col_id)
+        self._column_widths[col_id] = int(width)
+        self.widget['columns'] = self._columns
+        self.widget.heading(col_id, text=header)
+        self.widget.column(col_id, width=int(width), anchor=anchor, minwidth=50)
+        return len(self._columns) - 1
+    
+    def setcolumnwidth(self, index, width):
+        """Set the width of a column by index."""
+        idx = int(index)
+        if 0 <= idx < len(self._columns):
+            col_id = self._columns[idx]
+            self._column_widths[col_id] = int(width)
+            self.widget.column(col_id, width=int(width))
+    
+    def setcolumntext(self, index, text):
+        """Set the header text of a column by index."""
+        idx = int(index)
+        if 0 <= idx < len(self._columns):
+            col_id = self._columns[idx]
+            self.widget.heading(col_id, text=str(text))
+    
+    def additem(self, *values):
+        """Add an item (row) to the listview.
+        
+        Args:
+            values: Variable number of column values
+            
+        Returns:
+            Item index (0-based)
+        """
+        self._item_count += 1
+        iid = f'item_{self._item_count}'
+        
+        # Pad values to match column count
+        val_list = list(values)
+        while len(val_list) < len(self._columns):
+            val_list.append('')
+        
+        # Insert into treeview (first column value goes to first special column '#0' if exists, otherwise use first column)
+        if len(self._columns) > 0:
+            self.widget.insert('', 'end', iid=iid, values=val_list[:len(self._columns)])
+        else:
+            self.widget.insert('', 'end', iid=iid, text=str(values[0]) if values else '')
+        
+        self._items[iid] = val_list
+        return self._item_count - 1
+    
     def additems(self, *items):
-        for it in items:
-            self.widget.insert('', 'end', text=str(it))
-            self._items.append(it)
+        """Add multiple items. Each item can be a single value or tuple/list of values."""
+        for item in items:
+            if isinstance(item, (list, tuple)):
+                self.additem(*item)
+            else:
+                self.additem(str(item))
+    
+    def addrow(self, *values):
+        """Alias for additem - adds a row to the listview."""
+        return self.additem(*values)
+    
+    def insertitem(self, index, *values):
+        """Insert an item at a specific position."""
+        idx = int(index)
+        self._item_count += 1
+        iid = f'item_{self._item_count}'
+        
+        val_list = list(values)
+        while len(val_list) < len(self._columns):
+            val_list.append('')
+        
+        # Get iid of item after insertion point
+        children = self.widget.get_children()
+        if idx < len(children):
+            after_iid = children[idx]
+            self.widget.insert(self.widget.parent(after_iid), idx, iid=iid, values=val_list[:len(self._columns)])
+        else:
+            self.widget.insert('', 'end', iid=iid, values=val_list[:len(self._columns)])
+        
+        self._items[iid] = val_list
+        return idx
+    
+    def deleteitem(self, index):
+        """Delete an item by index."""
+        idx = int(index)
+        children = self.widget.get_children()
+        if 0 <= idx < len(children):
+            iid = children[idx]
+            self.widget.delete(iid)
+            if iid in self._items:
+                del self._items[iid]
     
     def clear(self):
+        """Remove all items from the listview."""
         self.widget.delete(*self.widget.get_children())
-        self._items = []
+        self._items.clear()
+        self._item_count = 0
+    
+    def setitem(self, index, *values):
+        """Update an existing item's values."""
+        idx = int(index)
+        children = self.widget.get_children()
+        if 0 <= idx < len(children):
+            iid = children[idx]
+            val_list = list(values)
+            while len(val_list) < len(self._columns):
+                val_list.append('')
+            self.widget.item(iid, values=val_list[:len(self._columns)])
+            self._items[iid] = val_list
+    
+    def getitem(self, index):
+        """Get an item's values as a tuple."""
+        idx = int(index)
+        children = self.widget.get_children()
+        if 0 <= idx < len(children):
+            iid = children[idx]
+            return tuple(self.widget.item(iid, 'values'))
+        return ()
+    
+    @property
+    def itemcount(self):
+        """Return the number of items in the listview."""
+        return len(self.widget.get_children())
+    
+    @property
+    def selectedindex(self):
+        """Return the index of the first selected item, or -1 if none selected."""
+        sel = self.widget.selection()
+        if sel:
+            children = self.widget.get_children()
+            try:
+                return children.index(sel[0])
+            except ValueError:
+                return -1
+        return -1
+    
+    @property
+    def selectedindices(self):
+        """Return a list of all selected item indices."""
+        sel = self.widget.selection()
+        children = self.widget.get_children()
+        return [children.index(iid) for iid in sel if iid in children]
+    
+    @selectedindex.setter
+    def selectedindex(self, value):
+        """Set the selected item by index."""
+        idx = int(value)
+        children = self.widget.get_children()
+        if 0 <= idx < len(children):
+            self.widget.selection_set(children[idx])
+            self.widget.see(children[idx])
+        else:
+            self.widget.selection_remove(*children)
+    
+    @property
+    def onclick(self): return self._events.get('onclick')
+    @onclick.setter
+    def onclick(self, value):
+        self._events['onclick'] = value
+    
+    @property
+    def ondblclick(self): return self._events.get('ondblclick')
+    @ondblclick.setter
+    def ondblclick(self, value):
+        self._events['ondblclick'] = value
+    
+    @property
+    def onchange(self): return self._events.get('onchange')
+    @onchange.setter
+    def onchange(self, value):
+        self._events['onchange'] = value
 
 class POpenDialog(PObject):
     def __init__(self):
