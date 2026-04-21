@@ -218,6 +218,12 @@ class PMySQL:
 
 class PSQLite:
 
+    def __init__(self):
+        self._onconnect = None
+        self._ondisconnect = None
+        self._onerror = None
+        self._onquerydone = None
+
     @property
     def onconnect(self): return self._onconnect
     @onconnect.setter
