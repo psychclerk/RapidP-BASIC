@@ -1,0 +1,388 @@
+object PForm
+  name = "mainform"
+  caption = "Todo Application - Task Manager"
+  width = 1200
+  height = 800
+  position = "poScreenCenter"
+  
+  object PMainMenu
+    name = "mainmenu"
+    
+    object PMenuItem
+      name = "filemenu"
+      caption = "&File"
+      
+      object PMenuItem
+        name = "file_close"
+        caption = "E&xit"
+        onclick = "file_close_click"
+      end
+    end
+    
+    object PMenuItem
+      name = "viewmenu"
+      caption = "&View"
+      
+      object PMenuItem
+        name = "view_refresh"
+        caption = "&Refresh"
+        onclick = "view_refresh_click"
+      end
+    end
+    
+    object PMenuItem
+      name = "helpmenu"
+      caption = "&Help"
+      
+      object PMenuItem
+        name = "help_about"
+        caption = "&About"
+        onclick = "help_about_click"
+      end
+    end
+  end
+  
+  object PTabControl
+    name = "tabs"
+    left = 10
+    top = 30
+    width = 1170
+    height = 720
+    
+    object PTabItem
+      name = "tab_incomplete"
+      caption = "Incomplete Tasks"
+      
+      object PEdit
+        name = "edit_search"
+        left = 10
+        top = 10
+        width = 300
+        height = 25
+        placeholder = "Search tasks..."
+      end
+      
+      object PButton
+        name = "btn_search"
+        left = 320
+        top = 10
+        width = 80
+        height = 25
+        caption = "Search"
+        onclick = "btn_search_click"
+      end
+      
+      object PListView
+        name = "listview1"
+        left = 10
+        top = 45
+        width = 1140
+        height = 300
+        viewstyle = "vsReport"
+        onselect = "listview1_select"
+        ondblclick = "listview1_dblclick"
+        onrightclick = "listview1_rightclick"
+        
+        column "ID", 50
+        column "Task Title", 300
+        column "Priority", 100
+        column "Due Date", 120
+        column "Last Updated", 200
+      end
+      
+      object PLabel
+        name = "label_title"
+        left = 10
+        top = 360
+        width = 80
+        height = 25
+        caption = "Task Title:"
+      end
+      
+      object PEdit
+        name = "edit_title"
+        left = 100
+        top = 360
+        width = 400
+        height = 25
+      end
+      
+      object PLabel
+        name = "label_priority"
+        left = 520
+        top = 360
+        width = 60
+        height = 25
+        caption = "Priority:"
+      end
+      
+      object PComboBox
+        name = "combo_priority"
+        left = 590
+        top = 360
+        width = 120
+        height = 25
+        items = "Low", "Medium", "High"
+        selectedindex = 1
+      end
+      
+      object PLabel
+        name = "label_due_date"
+        left = 730
+        top = 360
+        width = 70
+        height = 25
+        caption = "Due Date:"
+      end
+      
+      object PDateTimePicker
+        name = "datepicker_due_date"
+        left = 810
+        top = 360
+        width = 150
+        height = 25
+        format = "dd/mm/yyyy"
+      end
+      
+      object PButton
+        name = "btn_new"
+        left = 10
+        top = 400
+        width = 80
+        height = 30
+        caption = "New"
+        onclick = "btn_new_click"
+      end
+      
+      object PButton
+        name = "btn_save"
+        left = 100
+        top = 400
+        width = 80
+        height = 30
+        caption = "Save"
+        onclick = "btn_save_click"
+      end
+      
+      object PButton
+        name = "btn_cancel"
+        left = 190
+        top = 400
+        width = 80
+        height = 30
+        caption = "Cancel"
+        onclick = "btn_cancel_click"
+      end
+      
+      object PButton
+        name = "btn_update"
+        left = 280
+        top = 400
+        width = 80
+        height = 30
+        caption = "Update"
+        onclick = "btn_update_click"
+      end
+      
+      object PButton
+        name = "btn_delete"
+        left = 370
+        top = 400
+        width = 80
+        height = 30
+        caption = "Delete"
+        onclick = "btn_delete_click"
+      end
+      
+      object PButton
+        name = "btn_mark_completed"
+        left = 460
+        top = 400
+        width = 120
+        height = 30
+        caption = "Mark Complete"
+        onclick = "btn_mark_completed_click"
+      end
+      
+      object PButton
+        name = "btn_add_comment"
+        left = 590
+        top = 400
+        width = 100
+        height = 30
+        caption = "Add Comment"
+        onclick = "btn_add_comment_click"
+      end
+      
+      object PButton
+        name = "btn_report"
+        left = 700
+        top = 400
+        width = 80
+        height = 30
+        caption = "Report"
+        onclick = "btn_report_click"
+      end
+    end
+    
+    object PTabItem
+      name = "tab_comments"
+      caption = "Comments"
+      
+      object PLabel
+        name = "lbl_comment_task_id"
+        left = 10
+        top = 10
+        width = 150
+        height = 25
+        caption = "Task ID: "
+        fontbold = true
+      end
+      
+      object PLabel
+        name = "lbl_comment_title"
+        left = 170
+        top = 10
+        width = 300
+        height = 25
+        caption = "Title: "
+      end
+      
+      object PLabel
+        name = "lbl_comment_priority"
+        left = 480
+        top = 10
+        width = 120
+        height = 25
+        caption = "Priority: "
+      end
+      
+      object PLabel
+        name = "lbl_comment_due_date"
+        left = 610
+        top = 10
+        width = 150
+        height = 25
+        caption = "Due Date: "
+      end
+      
+      object PLabel
+        name = "lbl_comment_status"
+        left = 770
+        top = 10
+        width = 150
+        height = 25
+        caption = "Status: "
+      end
+      
+      object PListView
+        name = "comments_listview"
+        left = 10
+        top = 45
+        width = 1140
+        height = 300
+        viewstyle = "vsReport"
+        onselect = "comments_listview_select"
+        
+        column "ID", 50
+        column "Task ID", 60
+        column "Comment", 500
+        column "Attachment", 300
+        column "Updated", 200
+      end
+      
+      object PLabel
+        name = "label_comment"
+        left = 10
+        top = 360
+        width = 80
+        height = 25
+        caption = "Comment:"
+      end
+      
+      object PRichEdit
+        name = "edit_comment"
+        left = 100
+        top = 360
+        width = 800
+        height = 100
+        multiline = true
+        scrollbars = "ssBoth"
+      end
+      
+      object PLabel
+        name = "label_attachment"
+        left = 10
+        top = 470
+        width = 120
+        height = 25
+        caption = "Attachment Link:"
+      end
+      
+      object PEdit
+        name = "edit_attachment"
+        left = 140
+        top = 470
+        width = 760
+        height = 25
+        placeholder = "http:// or file path"
+      end
+      
+      object PButton
+        name = "btn_comment_new"
+        left = 10
+        top = 510
+        width = 80
+        height = 30
+        caption = "New"
+        onclick = "btn_comment_new_click"
+      end
+      
+      object PButton
+        name = "btn_comment_save"
+        left = 100
+        top = 510
+        width = 80
+        height = 30
+        caption = "Save"
+        onclick = "btn_comment_save_click"
+      end
+      
+      object PButton
+        name = "btn_comment_cancel"
+        left = 190
+        top = 510
+        width = 80
+        height = 30
+        caption = "Cancel"
+        onclick = "btn_comment_cancel_click"
+      end
+      
+      object PButton
+        name = "btn_comment_update"
+        left = 280
+        top = 510
+        width = 80
+        height = 30
+        caption = "Update"
+        onclick = "btn_comment_update_click"
+      end
+      
+      object PButton
+        name = "btn_comment_delete"
+        left = 370
+        top = 510
+        width = 80
+        height = 30
+        caption = "Delete"
+        onclick = "btn_comment_delete_click"
+      end
+    end
+  end
+  
+  object PStatusBar
+    name = "statusbar"
+    simplepanel = true
+    caption = "Todo Application - Ready"
+  end
+end

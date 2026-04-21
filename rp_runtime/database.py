@@ -217,41 +217,6 @@ class PMySQL:
 
 
 class PSQLite:
-    def __init__(self):
-        self.connected = 0
-        self._connection = None
-        self._cursor = None
-        self._results = []
-        self._fields = []
-        self._current_row_index = -1
-        
-        # IDE Design-Time Properties
-        self.left = 0
-        self.top = 0
-        self.width = 32
-        self.height = 32
-        
-        self.dbcount = 0
-        self.colcount = 0
-        self.fieldcount = 0
-        self.rowcount = 0
-        self.tablecount = 0
-        self.db = []
-        self.table = []
-        
-        # Event callbacks
-        self._onconnect = None
-        self._ondisconnect = None
-        self._onerror = None
-        self._onquerydone = None
-
-        class FieldProps:
-            def __init__(self):
-                self.name = ""
-                self.type = 0
-                self.length = 0
-                self.decimals = 0
-        self.field = FieldProps()
 
     @property
     def onconnect(self): return self._onconnect
