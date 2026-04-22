@@ -9,6 +9,16 @@ import os
 # Global app instance
 _app = None
 
+
+def _bgr_to_wx_colour(value):
+    """Convert RapidP BGR integer to wx.Colour."""
+    if isinstance(value, int):
+        r = value & 0xFF
+        g = (value >> 8) & 0xFF
+        b = (value >> 16) & 0xFF
+        return wx.Colour(r, g, b)
+    return None
+
 def get_app():
     global _app
     if _app is None:
@@ -34,6 +44,7 @@ class PComponent:
         self.handle = handle
         self._events = {}
         self._tag = None
+        self._font = PFont(owner=self)
     
     def set_tag(self, tag):
         self._tag = tag
@@ -47,6 +58,86 @@ class PComponent:
     def trigger_event(self, event_name, *args):
         if event_name in self._events:
             self._events[event_name](*args)
+
+
+class PFont:
+    """RapidP-compatible font object for wx controls."""
+    def __init__(self, owner=None):
+        self._owner = owner
+        self._name = "Segoe UI" if os.name == "nt" else "Helvetica"
+        self._size = 9
+        self._color = 0
+        self._bold = 0
+        self._italic = 0
+        self._underline = 0
+        self._strikeout = 0
+
+    def _apply(self):
+        if self._owner is not None and hasattr(self._owner, "_apply_font"):
+            self._owner._apply_font()
+
+    @property
+    def name(self):
+        return self._name
+
+    @name.setter
+    def name(self, value):
+        self._name = str(value)
+        self._apply()
+
+    @property
+    def size(self):
+        return self._size
+
+    @size.setter
+    def size(self, value):
+        self._size = int(value)
+        self._apply()
+
+    @property
+    def color(self):
+        return self._color
+
+    @color.setter
+    def color(self, value):
+        self._color = int(value) if value else 0
+        self._apply()
+
+    @property
+    def bold(self):
+        return self._bold
+
+    @bold.setter
+    def bold(self, value):
+        self._bold = int(value)
+        self._apply()
+
+    @property
+    def italic(self):
+        return self._italic
+
+    @italic.setter
+    def italic(self, value):
+        self._italic = int(value)
+        self._apply()
+
+    @property
+    def underline(self):
+        return self._underline
+
+    @underline.setter
+    def underline(self, value):
+        self._underline = int(value)
+        self._apply()
+
+    @property
+    def strikeout(self):
+        return self._strikeout
+
+    @strikeout.setter
+    def strikeout(self, value):
+        self._strikeout = int(value)
+        self._apply()
 
 # Form
 class PForm(PComponent):
@@ -130,6 +221,37 @@ class PForm(PComponent):
 
 # Common properties mixin for controls
 class ControlMixin:
+    @property
+    def font(self):
+        return self._font
+
+    @font.setter
+    def font(self, value):
+        self._font = value
+        self._apply_font()
+
+    def _apply_font(self):
+        if not getattr(self, "handle", None):
+            return
+        try:
+            weight = wx.FONTWEIGHT_BOLD if self._font.bold else wx.FONTWEIGHT_NORMAL
+            style = wx.FONTSTYLE_ITALIC if self._font.italic else wx.FONTSTYLE_NORMAL
+            font = wx.Font(
+                self._font.size,
+                wx.FONTFAMILY_DEFAULT,
+                style,
+                weight,
+                bool(self._font.underline),
+                self._font.name
+            )
+            self.handle.SetFont(font)
+            fg = _bgr_to_wx_colour(self._font.color)
+            if fg is not None:
+                self.handle.SetForegroundColour(fg)
+        except Exception:
+            # Keep behavior non-fatal for controls that don't support font operations.
+            pass
+
     def get_left(self):
         # wx doesn't expose left/top easily without sizers, using dummy for now or GetPosition if not in sizer
         # For proper layout, wx uses Sizers. RapidP BASIC usually uses absolute.
@@ -204,6 +326,7 @@ class PLabel(PComponent, ControlMixin):
         super().__init__(handle)
         self.parent = parent
         self._caption = ""
+        self._font = PFont(owner=self)
         
     def get_caption(self):
         return self._caption
