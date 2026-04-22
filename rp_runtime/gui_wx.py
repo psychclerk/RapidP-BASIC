@@ -124,6 +124,10 @@ class PForm(PComponent):
         self._frame.SetPosition((pos.x, val))
     top = property(get_top, set_top)
 
+    def center(self):
+        """Center the form on the screen"""
+        self._frame.Centre()
+
 # Common properties mixin for controls
 class ControlMixin:
     def get_left(self):
