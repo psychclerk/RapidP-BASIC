@@ -578,7 +578,7 @@ class PStringGrid(PComponent, ControlMixin):
         handle = wxgrid.Grid(real_parent, -1)
         super().__init__(handle)
         self.parent = parent
-        handle.Bind(wxgrid.EVT_GRID_CELL_CHANGED, lambda e: self.trigger_event('onchange'))
+        handle.Bind(wxgrid.EVT_GRID_CELL_CHANGE, lambda e: self.trigger_event('onchange'))
         handle.Bind(wxgrid.EVT_GRID_SELECT_CELL, lambda e: self.trigger_event('onclick'))
         
         self._rows = 0
