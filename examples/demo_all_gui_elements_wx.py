@@ -4,11 +4,11 @@ from rp_runtime.database import *
 from rp_runtime.network import *
 from rp_runtime.pycomponents import *
 def onload():
-    global list1, selectgroup, radioresult, tab3, helpmenu, timelabel, mainmenu, check2, statusbar, tab1, radio1, listlabel, aboutitem, mainform, grid1, tracklabel, exititem, richedit1, radio2, label1, filemenu, listview1, bottompanel, combo1, combolabel, basicgroup, testspassed, radiolabel, edit1, check1, progresslabel, tab2, progressbar1, checkresult, radio3, track1, timer1, button1, tabs
+    global radio1, checkresult, button1, radio2, edit1, selectgroup, check2, tab1, progressbar1, radioresult, track1, grid1, richedit1, mainform, bottompanel, radio3, listlabel, testspassed, progresslabel, radiolabel, statusbar, filemenu, tabs, tab2, label1, exititem, basicgroup, mainmenu, combo1, timelabel, check1, timer1, aboutitem, list1, tracklabel, tab3, helpmenu, listview1, combolabel
     rp_print("Form loaded successfully")
     populatecontrols()
 def populatecontrols():
-    global list1, selectgroup, radioresult, tab3, helpmenu, timelabel, mainmenu, check2, statusbar, tab1, radio1, listlabel, aboutitem, mainform, grid1, tracklabel, exititem, richedit1, radio2, label1, filemenu, listview1, bottompanel, combo1, combolabel, basicgroup, testspassed, radiolabel, edit1, check1, progresslabel, tab2, progressbar1, checkresult, radio3, track1, timer1, button1, tabs
+    global radio1, checkresult, button1, radio2, edit1, selectgroup, check2, tab1, progressbar1, radioresult, track1, grid1, richedit1, mainform, bottompanel, radio3, listlabel, testspassed, progresslabel, radiolabel, statusbar, filemenu, tabs, tab2, label1, exititem, basicgroup, mainmenu, combo1, timelabel, check1, timer1, aboutitem, list1, tracklabel, tab3, helpmenu, listview1, combolabel
     combo1.additems("Option 1", "Option 2", "Option 3", "Option 4")
     combo1.text = "Option 1"
     list1.additems("Item A", "Item B", "Item C", "Item D", "Item E")
@@ -38,28 +38,28 @@ def populatecontrols():
     testspassed = (testspassed + 1)
     rp_print("PASS: All controls populated")
 def oncombochange():
-    global list1, selectgroup, radioresult, tab3, helpmenu, timelabel, mainmenu, check2, statusbar, tab1, radio1, listlabel, aboutitem, mainform, grid1, tracklabel, exititem, richedit1, radio2, label1, filemenu, listview1, bottompanel, combo1, combolabel, basicgroup, testspassed, radiolabel, edit1, check1, progresslabel, tab2, progressbar1, checkresult, radio3, track1, timer1, button1, tabs
+    global radio1, checkresult, button1, radio2, edit1, selectgroup, check2, tab1, progressbar1, radioresult, track1, grid1, richedit1, mainform, bottompanel, radio3, listlabel, testspassed, progresslabel, radiolabel, statusbar, filemenu, tabs, tab2, label1, exititem, basicgroup, mainmenu, combo1, timelabel, check1, timer1, aboutitem, list1, tracklabel, tab3, helpmenu, listview1, combolabel
     rp_print(("ComboBox changed to: " + combo1.text))
 def onlistclick():
-    global list1, selectgroup, radioresult, tab3, helpmenu, timelabel, mainmenu, check2, statusbar, tab1, radio1, listlabel, aboutitem, mainform, grid1, tracklabel, exititem, richedit1, radio2, label1, filemenu, listview1, bottompanel, combo1, combolabel, basicgroup, testspassed, radiolabel, edit1, check1, progresslabel, tab2, progressbar1, checkresult, radio3, track1, timer1, button1, tabs
+    global radio1, checkresult, button1, radio2, edit1, selectgroup, check2, tab1, progressbar1, radioresult, track1, grid1, richedit1, mainform, bottompanel, radio3, listlabel, testspassed, progresslabel, radiolabel, statusbar, filemenu, tabs, tab2, label1, exititem, basicgroup, mainmenu, combo1, timelabel, check1, timer1, aboutitem, list1, tracklabel, tab3, helpmenu, listview1, combolabel
     rp_print(("ListBox selected index: " + str_func(list1.itemindex)))
 def onlistviewchange():
-    global list1, selectgroup, radioresult, tab3, helpmenu, timelabel, mainmenu, check2, statusbar, tab1, radio1, listlabel, aboutitem, mainform, grid1, tracklabel, exititem, richedit1, radio2, label1, filemenu, listview1, bottompanel, combo1, combolabel, basicgroup, testspassed, radiolabel, edit1, check1, progresslabel, tab2, progressbar1, checkresult, radio3, track1, timer1, button1, tabs
+    global radio1, checkresult, button1, radio2, edit1, selectgroup, check2, tab1, progressbar1, radioresult, track1, grid1, richedit1, mainform, bottompanel, radio3, listlabel, testspassed, progresslabel, radiolabel, statusbar, filemenu, tabs, tab2, label1, exititem, basicgroup, mainmenu, combo1, timelabel, check1, timer1, aboutitem, list1, tracklabel, tab3, helpmenu, listview1, combolabel
     idx = 0
     idx = listview1.selectedindex
     if (idx >= 0):
         rp_print(("ListView selected row: " + str_func(idx)))
 def ontrackchange():
-    global list1, selectgroup, radioresult, tab3, helpmenu, timelabel, mainmenu, check2, statusbar, tab1, radio1, listlabel, aboutitem, mainform, grid1, tracklabel, exititem, richedit1, radio2, label1, filemenu, listview1, bottompanel, combo1, combolabel, basicgroup, testspassed, radiolabel, edit1, check1, progresslabel, tab2, progressbar1, checkresult, radio3, track1, timer1, button1, tabs
+    global radio1, checkresult, button1, radio2, edit1, selectgroup, check2, tab1, progressbar1, radioresult, track1, grid1, richedit1, mainform, bottompanel, radio3, listlabel, testspassed, progresslabel, radiolabel, statusbar, filemenu, tabs, tab2, label1, exititem, basicgroup, mainmenu, combo1, timelabel, check1, timer1, aboutitem, list1, tracklabel, tab3, helpmenu, listview1, combolabel
     tracklabel.caption = ("TrackBar Value: " + str_func(track1.position))
 def oncheckchange():
-    global list1, selectgroup, radioresult, tab3, helpmenu, timelabel, mainmenu, check2, statusbar, tab1, radio1, listlabel, aboutitem, mainform, grid1, tracklabel, exititem, richedit1, radio2, label1, filemenu, listview1, bottompanel, combo1, combolabel, basicgroup, testspassed, radiolabel, edit1, check1, progresslabel, tab2, progressbar1, checkresult, radio3, track1, timer1, button1, tabs
+    global radio1, checkresult, button1, radio2, edit1, selectgroup, check2, tab1, progressbar1, radioresult, track1, grid1, richedit1, mainform, bottompanel, radio3, listlabel, testspassed, progresslabel, radiolabel, statusbar, filemenu, tabs, tab2, label1, exititem, basicgroup, mainmenu, combo1, timelabel, check1, timer1, aboutitem, list1, tracklabel, tab3, helpmenu, listview1, combolabel
     if (check1.checked == 1):
         checkresult.caption = "CheckBox is CHECKED"
     else:
         checkresult.caption = "CheckBox is UNCHECKED"
 def onradioclick():
-    global list1, selectgroup, radioresult, tab3, helpmenu, timelabel, mainmenu, check2, statusbar, tab1, radio1, listlabel, aboutitem, mainform, grid1, tracklabel, exititem, richedit1, radio2, label1, filemenu, listview1, bottompanel, combo1, combolabel, basicgroup, testspassed, radiolabel, edit1, check1, progresslabel, tab2, progressbar1, checkresult, radio3, track1, timer1, button1, tabs
+    global radio1, checkresult, button1, radio2, edit1, selectgroup, check2, tab1, progressbar1, radioresult, track1, grid1, richedit1, mainform, bottompanel, radio3, listlabel, testspassed, progresslabel, radiolabel, statusbar, filemenu, tabs, tab2, label1, exititem, basicgroup, mainmenu, combo1, timelabel, check1, timer1, aboutitem, list1, tracklabel, tab3, helpmenu, listview1, combolabel
     if (radio1.checked == 1):
         radioresult.caption = "Radio 1 selected"
     elif (radio2.checked == 1):
@@ -67,17 +67,17 @@ def onradioclick():
     else:
         radioresult.caption = "Radio 3 selected"
 def onbuttonclick():
-    global list1, selectgroup, radioresult, tab3, helpmenu, timelabel, mainmenu, check2, statusbar, tab1, radio1, listlabel, aboutitem, mainform, grid1, tracklabel, exititem, richedit1, radio2, label1, filemenu, listview1, bottompanel, combo1, combolabel, basicgroup, testspassed, radiolabel, edit1, check1, progresslabel, tab2, progressbar1, checkresult, radio3, track1, timer1, button1, tabs
+    global radio1, checkresult, button1, radio2, edit1, selectgroup, check2, tab1, progressbar1, radioresult, track1, grid1, richedit1, mainform, bottompanel, radio3, listlabel, testspassed, progresslabel, radiolabel, statusbar, filemenu, tabs, tab2, label1, exititem, basicgroup, mainmenu, combo1, timelabel, check1, timer1, aboutitem, list1, tracklabel, tab3, helpmenu, listview1, combolabel
     MsgBox("Button was clicked!", "Button Click Event")
     sound(1000, 100)
 def ontabchange():
-    global list1, selectgroup, radioresult, tab3, helpmenu, timelabel, mainmenu, check2, statusbar, tab1, radio1, listlabel, aboutitem, mainform, grid1, tracklabel, exititem, richedit1, radio2, label1, filemenu, listview1, bottompanel, combo1, combolabel, basicgroup, testspassed, radiolabel, edit1, check1, progresslabel, tab2, progressbar1, checkresult, radio3, track1, timer1, button1, tabs
+    global radio1, checkresult, button1, radio2, edit1, selectgroup, check2, tab1, progressbar1, radioresult, track1, grid1, richedit1, mainform, bottompanel, radio3, listlabel, testspassed, progresslabel, radiolabel, statusbar, filemenu, tabs, tab2, label1, exititem, basicgroup, mainmenu, combo1, timelabel, check1, timer1, aboutitem, list1, tracklabel, tab3, helpmenu, listview1, combolabel
     rp_print(("Tab changed to: " + tabs.caption))
 def ontimertick():
-    global list1, selectgroup, radioresult, tab3, helpmenu, timelabel, mainmenu, check2, statusbar, tab1, radio1, listlabel, aboutitem, mainform, grid1, tracklabel, exititem, richedit1, radio2, label1, filemenu, listview1, bottompanel, combo1, combolabel, basicgroup, testspassed, radiolabel, edit1, check1, progresslabel, tab2, progressbar1, checkresult, radio3, track1, timer1, button1, tabs
+    global radio1, checkresult, button1, radio2, edit1, selectgroup, check2, tab1, progressbar1, radioresult, track1, grid1, richedit1, mainform, bottompanel, radio3, listlabel, testspassed, progresslabel, radiolabel, statusbar, filemenu, tabs, tab2, label1, exititem, basicgroup, mainmenu, combo1, timelabel, check1, timer1, aboutitem, list1, tracklabel, tab3, helpmenu, listview1, combolabel
     timelabel.caption = ("Current Time: " + time_func())
 def onexit():
-    global list1, selectgroup, radioresult, tab3, helpmenu, timelabel, mainmenu, check2, statusbar, tab1, radio1, listlabel, aboutitem, mainform, grid1, tracklabel, exititem, richedit1, radio2, label1, filemenu, listview1, bottompanel, combo1, combolabel, basicgroup, testspassed, radiolabel, edit1, check1, progresslabel, tab2, progressbar1, checkresult, radio3, track1, timer1, button1, tabs
+    global radio1, checkresult, button1, radio2, edit1, selectgroup, check2, tab1, progressbar1, radioresult, track1, grid1, richedit1, mainform, bottompanel, radio3, listlabel, testspassed, progresslabel, radiolabel, statusbar, filemenu, tabs, tab2, label1, exititem, basicgroup, mainmenu, combo1, timelabel, check1, timer1, aboutitem, list1, tracklabel, tab3, helpmenu, listview1, combolabel
     mainform.close()
 # Directive: $TYPECHECK ON 
 rp_print("RapidP Complete GUI Elements Demo")

@@ -638,6 +638,58 @@ class PPanel(PComponent, ControlMixin):
         self._sizer = wx.BoxSizer(wx.VERTICAL)
         self.handle.SetSizer(self._sizer)
 
+# TrackBar (Slider)
+class PTrackBar(PComponent, ControlMixin):
+    def __init__(self, parent):
+        real_parent = _get_wx_parent(parent)
+        handle = wx.Slider(real_parent, -1, 0, 0, 100, style=wx.SL_HORIZONTAL)
+        super().__init__(handle)
+        self.parent = parent
+        self._min = 0
+        self._max = 100
+        self.handle.Bind(wx.EVT_SLIDER, self._on_change)
+    
+    def _on_change(self, event):
+        self.trigger_event('onchange')
+    
+    @property
+    def position(self):
+        return self.handle.GetValue()
+    
+    @position.setter
+    def position(self, val):
+        self.handle.SetValue(int(val))
+    
+    @property
+    def min(self):
+        return self._min
+    
+    @min.setter
+    def min(self, val):
+        self._min = int(val)
+        self.handle.SetRange(self._min, self._max)
+    
+    @property
+    def max(self):
+        return self._max
+    
+    @max.setter
+    def max(self, val):
+        self._max = int(val)
+        self.handle.SetRange(self._min, self._max)
+    
+    @property
+    def orientation(self):
+        # 0 = horizontal, 1 = vertical
+        style = self.handle.GetWindowStyle()
+        return 1 if style & wx.SL_VERTICAL else 0
+    
+    @orientation.setter
+    def orientation(self, val):
+        # Note: wxPython slider orientation can't be changed after creation
+        # This is a limitation compared to Tkinter
+        pass
+
 # Helper for Message Box
 def msgbox(prompt, title="Message", flags=0):
     app = get_app()
