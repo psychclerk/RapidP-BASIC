@@ -51,6 +51,8 @@ class PComponent:
 # Form
 class PForm(PComponent):
     def __init__(self, parent=None):
+        # Ensure app is created first
+        get_app()
         self._frame = wx.Frame(parent, -1, "Form")
         super().__init__(self._frame)
         self._frame.SetSize(800, 600)
