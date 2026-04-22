@@ -1,0 +1,672 @@
+' Todo Application in RapidP-BASIC
+' Complete task management with SQLite backend
+
+option explicit
+
+' Global variables
+dim db as database
+dim current_task_id as integer
+dim current_comment_id as integer
+dim search_mode as string
+
+' Initialize database
+sub init_database()
+    db = new database
+    db.open("todo_app.db")
+    
+    ' Create tasks table
+    db.execute( _
+        "CREATE TABLE IF NOT EXISTS tasks (" & _
+        "id INTEGER PRIMARY KEY AUTOINCREMENT," & _
+        "title TEXT NOT NULL," & _
+        "priority TEXT DEFAULT 'medium'," & _
+        "due_date TEXT," & _
+        "status TEXT DEFAULT 'incomplete'," & _
+        "updated_datetime TEXT," & _
+        "soft_delete INTEGER DEFAULT 0)" )
+    
+    ' Create comments table
+    db.execute( _
+        "CREATE TABLE IF NOT EXISTS comments (" & _
+        "id INTEGER PRIMARY KEY AUTOINCREMENT," & _
+        "task_id INTEGER NOT NULL," & _
+        "comment TEXT NOT NULL," & _
+        "attachment_link TEXT," & _
+        "updated_datetime TEXT," & _
+        "soft_delete INTEGER DEFAULT 0," & _
+        "FOREIGN KEY (task_id) REFERENCES tasks(id))" )
+    
+    db.commit()
+end sub
+
+' Get current datetime
+function get_current_datetime() as string
+    dim dt as string
+    dt = date & " " & time
+    get_current_datetime = dt
+end function
+
+' Load incomplete tasks into listview
+sub load_incomplete_tasks(search_term as string)
+    dim query as string
+    dim rs as recordset
+    
+    listview1.clear()
+    
+    if search_term = "" then
+        query = "SELECT id, title, priority, due_date, status, updated_datetime FROM tasks WHERE status='incomplete' AND soft_delete=0 ORDER BY due_date"
+    else
+        query = "SELECT id, title, priority, due_date, status, updated_datetime FROM tasks " & _
+                "WHERE status='incomplete' AND soft_delete=0 AND " & _
+                "(title LIKE '%" & search_term & "%' OR " & _
+                "priority LIKE '%" & search_term & "%' OR " & _
+                "due_date LIKE '%" & search_term & "%') " & _
+                "ORDER BY due_date"
+    end if
+    
+    rs = db.query(query)
+    
+    while rs.fetchrow()
+        dim id_val as string
+        dim title_val as string
+        dim priority_val as string
+        dim due_date_val as string
+        dim status_val as string
+        dim updated_val as string
+        
+        id_val = cstr(rs.row(0))
+        title_val = rs.row(1)
+        priority_val = rs.row(2)
+        due_date_val = rs.row(3)
+        status_val = rs.row(4)
+        updated_val = rs.row(5)
+        
+        listview1.addrow(id_val, title_val, priority_val, due_date_val, updated_val)
+    wend
+    
+    rs.close()
+end sub
+
+' Load comments for current task
+sub load_comments(task_id as integer)
+    dim query as string
+    dim rs as recordset
+    
+    comments_listview.clear()
+    
+    query = "SELECT id, task_id, comment, attachment_link, updated_datetime FROM comments " & _
+            "WHERE task_id=" & cstr(task_id) & " AND soft_delete=0 ORDER BY updated_datetime DESC"
+    
+    rs = db.query(query)
+    
+    while rs.fetchrow()
+        dim id_val, task_id_val, comment_val, attachment_val, updated_val as string
+        
+        id_val = cstr(rs.row(0))
+        task_id_val = cstr(rs.row(1))
+        comment_val = rs.row(2)
+        attachment_val = rs.row(3)
+        updated_val = rs.row(4)
+        
+        ' Convert <cr> tags back to newlines for display
+        comment_val = replace(comment_val, "<cr>", chr(13) & chr(10))
+        
+        comments_listview.addrow(id_val, task_id_val, comment_val, attachment_val, updated_val)
+        
+    wend
+    
+    rs.close()
+end sub
+
+' Clear input fields
+sub clear_task_fields()
+    edit_title.text = ""
+    combo_priority.selectedindex = 1  ' Medium
+    datepicker_due_date.value = date
+    current_task_id = -1
+end sub
+
+' Clear comment fields
+sub clear_comment_fields()
+    edit_comment.text = ""
+    edit_attachment.text = ""
+    current_comment_id = -1
+end sub
+
+' Show task details in form
+sub show_task_details(task_id as integer)
+    dim query as string
+    dim rs as recordset
+    
+    query = "SELECT title, priority, due_date FROM tasks WHERE id=" & cstr(task_id)
+    rs = db.query(query)
+    
+    if not rs.eof then
+        edit_title.text = rs.row(0)
+        dim priority_val as string
+        priority_val = rs.row(1)
+        
+        select case priority_val
+            case "low"
+                combo_priority.selectedindex = 0
+            case "medium"
+                combo_priority.selectedindex = 1
+            case "high"
+                combo_priority.selectedindex = 2
+        end select
+        
+        datepicker_due_date.value = rs.row(2)
+        current_task_id = task_id
+    end if
+    
+    rs.close()
+end sub
+
+' Show comment details
+sub show_comment_details(comment_id as integer)
+    dim query as string
+    dim rs as recordset
+    
+    query = "SELECT comment, attachment_link FROM comments WHERE id=" & cstr(comment_id)
+    rs = db.query(query)
+    
+    if not rs.eof then
+        dim comment_text as string
+        comment_text = rs.row(0)
+        ' Convert <cr> tags back to newlines
+        comment_text = replace(comment_text, "<cr>", chr(13) & chr(10))
+        
+        edit_comment.text = comment_text
+        edit_attachment.text = rs.row(1)
+        current_comment_id = comment_id
+    end if
+    
+    rs.close()
+end sub
+
+' Generate HTML report for task
+sub generate_task_report(task_id as integer)
+    dim query as string
+    dim rs as recordset
+    dim html as string
+    dim filename as string
+    
+    ' Get task details
+    query = "SELECT title, priority, due_date, status, updated_datetime FROM tasks WHERE id=" & cstr(task_id)
+    rs = db.query(query)
+    
+    if rs.eof then
+        msgbox "Task not found!", "Error", 0
+        rs.close()
+        exit sub
+    end if
+    
+    dim title_val, priority_val, due_date_val, status_val, updated_val as string
+    title_val = rs.row(0)
+    priority_val = rs.row(1)
+    due_date_val = rs.row(2)
+    status_val = rs.row(3)
+    updated_val = rs.row(4)
+    rs.close()
+    
+    ' Build HTML
+    html = "<html><head><title>Task Report: " & title_val & "</title>" & _
+           "<style>body{font-family:Arial,sans-serif;margin:20px;} " & _
+           "h1{color:#333;} .label{font-weight:bold;color:#555;} " & _
+           "table{border-collapse:collapse;width:100%;margin:20px 0;} " & _
+           "th,td{border:1px solid #ddd;padding:8px;text-align:left;} " & _
+           "th{background-color:#4CAF50;color:white;} " & _
+           "a{color:#2196F3;text-decoration:none;} a:hover{text-decoration:underline;}</style></head>" & _
+           "<body>" & _
+           "<h1>Task Report</h1>" & _
+           "<p><span class='label'>ID:</span> " & cstr(task_id) & "</p>" & _
+           "<p><span class='label'>Title:</span> " & title_val & "</p>" & _
+           "<p><span class='label'>Priority:</span> " & priority_val & "</p>" & _
+           "<p><span class='label'>Due Date:</span> " & due_date_val & "</p>" & _
+           "<p><span class='label'>Status:</span> " & status_val & "</p>" & _
+           "<p><span class='label'>Last Updated:</span> " & updated_val & "</p>" & _
+           "<h2>Comments</h2>"
+    
+    ' Get comments
+    query = "SELECT comment, attachment_link, updated_datetime FROM comments WHERE task_id=" & cstr(task_id) & " AND soft_delete=0"
+    rs = db.query(query)
+    
+    html = html & "<table><tr><th>Comment</th><th>Attachment</th><th>Updated</th></tr>"
+    
+    dim has_comments as boolean
+    has_comments = false
+    
+    while rs.fetchrow()
+        has_comments = true
+        dim comment_text, attachment_val, comment_updated as string
+        comment_text = rs.row(0)
+        comment_text = replace(comment_text, "<cr>", "<br>")
+        attachment_val = rs.row(1)
+        comment_updated = rs.row(2)
+        
+        html = html & "<tr><td>" & comment_text & "</td>"
+        
+        if attachment_val <> "" then
+            html = html & "<td><a href='" & attachment_val & "' target='_blank'>" & attachment_val & "</a></td>"
+        else
+            html = html & "<td>-</td>"
+        end if
+        
+        html = html & "<td>" & comment_updated & "</td></tr>"
+        
+    wend
+    
+    rs.close()
+    
+    if not has_comments then
+        html = html & "<tr><td colspan='3'>No comments</td></tr>"
+    end if
+    
+    html = html & "</table></body></html>"
+    
+    ' Save to file
+    filename = "task_report_" & cstr(task_id) & ".html"
+    dim fnum as integer
+    fnum = freefile
+    open filename for output as #fnum
+    print #fnum, html
+    close #fnum
+    
+    ' Open in browser
+    dim shell_cmd as string
+    shell_cmd = "start " & filename
+    shell shell_cmd
+    
+    msgbox "Report generated: " & filename, "Success", 0
+end sub
+
+' Menu event handlers
+sub file_close_click()
+    dim result as integer
+    result = msgbox("Are you sure you want to exit?", "Confirm Exit", 1)
+    if result = 1 then
+        end
+    end if
+end sub
+
+sub view_refresh_click()
+    load_incomplete_tasks("")
+    edit_search.text = ""
+    msgbox "Tasks refreshed!", "Refresh", 0
+end sub
+
+sub help_about_click()
+    msgbox("Todo Application v1.0" & chr(13) & chr(10) & _
+           "Complete task management system" & chr(13) & chr(10) & _
+           "Built with RapidP-BASIC" & chr(13) & chr(10) & _
+           "Uses SQLite for data storage", "About", 0)
+end sub
+
+' Search button click
+sub btn_search_click()
+    dim search_term as string
+    search_term = edit_search.text
+    load_incomplete_tasks(search_term)
+end sub
+
+' Listview right-click context menu
+sub listview1_rightclick(x as integer, y as integer)
+    if listview1.selectedindex < 0 then
+        msgbox "Please select a task first", "Info", 0
+        exit sub
+    end if
+    
+    dim selected_id as string
+    selected_id = listview1.cells[listview1.selectedindex][0]
+    current_task_id = cint(selected_id)
+    
+    dim choice as integer
+    choice = msgbox("Task ID: " & selected_id & chr(13) & chr(10) & chr(13) & chr(10) & _
+                    "Choose action:" & chr(13) & chr(10) & _
+                    "Click Yes to Mark Complete" & chr(13) & chr(10) & _
+                    "Click No to Open Comments" & chr(13) & chr(10) & _
+                    "Click Cancel for Report", _
+                    "Task Options", 2)
+    
+    select case choice
+        case 1  ' Yes - Mark Complete
+            mark_task_complete()
+        case 0  ' No - Open Comments
+            open_comments_window()
+        case 2  ' Cancel - Report
+            generate_task_report(current_task_id)
+    end select
+end sub
+
+' Listview double-click
+sub listview1_dblclick()
+    if listview1.selectedindex < 0 then
+        exit sub
+    end if
+    
+    open_comments_window()
+end sub
+
+' Mark task as complete
+sub mark_task_complete()
+    if current_task_id < 0 then
+        msgbox "No task selected", "Error", 0
+        exit sub
+    end if
+    
+    dim query as string
+    query = "UPDATE tasks SET status='complete', updated_datetime='" & get_current_datetime() & _
+            "' WHERE id=" & cstr(current_task_id)
+    
+    db.execute(query)
+    db.commit()
+    
+    msgbox "Task marked as complete!", "Success", 0
+    load_incomplete_tasks("")
+    clear_task_fields()
+end sub
+
+' Open comments window
+sub open_comments_window()
+    if current_task_id < 0 then
+        msgbox "No task selected", "Error", 0
+        exit sub
+    end if
+    
+    ' Show task info in comments window
+    dim query as string
+    dim rs as recordset
+    
+    query = "SELECT title, priority, due_date, status FROM tasks WHERE id=" & cstr(current_task_id)
+    rs = db.query(query)
+    
+    if not rs.eof then
+        lbl_comment_task_id.caption = "Task ID: " & cstr(current_task_id)
+        lbl_comment_title.caption = "Title: " & rs.row(0)
+        lbl_comment_priority.caption = "Priority: " & rs.row(1)
+        lbl_comment_due_date.caption = "Due Date: " & rs.row(2)
+        lbl_comment_status.caption = "Status: " & rs.row(3)
+    end if
+    
+    rs.close()
+    
+    load_comments(current_task_id)
+    clear_comment_fields()
+    
+    ' Switch to comments tab
+    tabs.selectedindex = 1
+end sub
+
+' New task button
+sub btn_new_click()
+    clear_task_fields()
+    msgbox "Ready to create new task", "New Task", 0
+end sub
+
+' Save task button
+sub btn_save_click()
+    if edit_title.text = "" then
+        msgbox "Task title is required", "Error", 0
+        exit sub
+    end if
+    
+    dim priority_val as string
+    select case combo_priority.selectedindex
+        case 0
+            priority_val = "low"
+        case 1
+            priority_val = "medium"
+        case 2
+            priority_val = "high"
+    end select
+    
+    dim due_date_val as string
+    due_date_val = datepicker_due_date.value
+    
+    dim query as string
+    query = "INSERT INTO tasks (title, priority, due_date, status, updated_datetime, soft_delete) " & _
+            "VALUES ('" & edit_title.text & "', '" & priority_val & "', '" & due_date_val & _
+            "', 'incomplete', '" & get_current_datetime() & "', 0)"
+    
+    db.execute(query)
+    db.commit()
+    
+    msgbox "Task saved successfully!", "Success", 0
+    load_incomplete_tasks("")
+    clear_task_fields()
+end sub
+
+' Cancel button
+sub btn_cancel_click()
+    clear_task_fields()
+end sub
+
+' Update task button
+sub btn_update_click()
+    if current_task_id < 0 then
+        msgbox "No task selected for update", "Error", 0
+        exit sub
+    end if
+    
+    if edit_title.text = "" then
+        msgbox "Task title is required", "Error", 0
+        exit sub
+    end if
+    
+    dim priority_val as string
+    select case combo_priority.selectedindex
+        case 0
+            priority_val = "low"
+        case 1
+            priority_val = "medium"
+        case 2
+            priority_val = "high"
+    end select
+    
+    dim due_date_val as string
+    due_date_val = datepicker_due_date.value
+    
+    dim query as string
+    query = "UPDATE tasks SET title='" & edit_title.text & _
+            "', priority='" & priority_val & _
+            "', due_date='" & due_date_val & _
+            "', updated_datetime='" & get_current_datetime() & _
+            "' WHERE id=" & cstr(current_task_id)
+    
+    db.execute(query)
+    db.commit()
+    
+    msgbox "Task updated successfully!", "Success", 0
+    load_incomplete_tasks("")
+end sub
+
+' Delete task button (soft delete)
+sub btn_delete_click()
+    if current_task_id < 0 then
+        msgbox "No task selected for deletion", "Error", 0
+        exit sub
+    end if
+    
+    dim result as integer
+    result = msgbox("Are you sure you want to delete this task?", "Confirm Delete", 1)
+    
+    if result = 1 then
+        dim query as string
+        query = "UPDATE tasks SET soft_delete=1, updated_datetime='" & get_current_datetime() & _
+                "' WHERE id=" & cstr(current_task_id)
+        
+        db.execute(query)
+        db.commit()
+        
+        msgbox "Task deleted successfully!", "Success", 0
+        load_incomplete_tasks("")
+        clear_task_fields()
+    end if
+end sub
+
+' Mark completed button
+sub btn_mark_completed_click()
+    mark_task_complete()
+end sub
+
+' Add comment button
+sub btn_add_comment_click()
+    if current_task_id < 0 then
+        msgbox "No task selected", "Error", 0
+        exit sub
+    end if
+    
+    ' Switch to comments tab
+    tabs.selectedindex = 1
+    clear_comment_fields()
+end sub
+
+' Report button
+sub btn_report_click()
+    if current_task_id < 0 then
+        msgbox "No task selected", "Error", 0
+        exit sub
+    end if
+    
+    generate_task_report(current_task_id)
+end sub
+
+' Comments window - New comment
+sub btn_comment_new_click()
+    clear_comment_fields()
+end sub
+
+' Comments window - Save comment
+sub btn_comment_save_click()
+    if current_task_id < 0 then
+        msgbox "No task selected", "Error", 0
+        exit sub
+    end if
+    
+    if edit_comment.text = "" then
+        msgbox "Comment is required", "Error", 0
+        exit sub
+    end if
+    
+    ' Convert newlines to <cr> tags
+    dim comment_text as string
+    comment_text = replace(edit_comment.text, chr(13) & chr(10), "<cr>")
+    comment_text = replace(comment_text, chr(13), "<cr>")
+    comment_text = replace(comment_text, chr(10), "<cr>")
+    
+    dim query as string
+    query = "INSERT INTO comments (task_id, comment, attachment_link, updated_datetime, soft_delete) " & _
+            "VALUES (" & cstr(current_task_id) & ", '" & comment_text & "', '" & edit_attachment.text & _
+            "', '" & get_current_datetime() & "', 0)"
+    
+    db.execute(query)
+    db.commit()
+    
+    msgbox "Comment saved successfully!", "Success", 0
+    load_comments(current_task_id)
+    clear_comment_fields()
+end sub
+
+' Comments window - Cancel
+sub btn_comment_cancel_click()
+    clear_comment_fields()
+end sub
+
+' Comments window - Update comment
+sub btn_comment_update_click()
+    if current_comment_id < 0 then
+        msgbox "No comment selected for update", "Error", 0
+        exit sub
+    end if
+    
+    if edit_comment.text = "" then
+        msgbox "Comment is required", "Error", 0
+        exit sub
+    end if
+    
+    ' Convert newlines to <cr> tags
+    dim comment_text as string
+    comment_text = replace(edit_comment.text, chr(13) & chr(10), "<cr>")
+    comment_text = replace(comment_text, chr(13), "<cr>")
+    comment_text = replace(comment_text, chr(10), "<cr>")
+    
+    dim query as string
+    query = "UPDATE comments SET comment='" & comment_text & _
+            "', attachment_link='" & edit_attachment.text & _
+            "', updated_datetime='" & get_current_datetime() & _
+            "' WHERE id=" & cstr(current_comment_id)
+    
+    db.execute(query)
+    db.commit()
+    
+    msgbox "Comment updated successfully!", "Success", 0
+    load_comments(current_task_id)
+    clear_comment_fields()
+end sub
+
+' Comments window - Delete comment
+sub btn_comment_delete_click()
+    if current_comment_id < 0 then
+        msgbox "No comment selected for deletion", "Error", 0
+        exit sub
+    end if
+    
+    dim result as integer
+    result = msgbox("Are you sure you want to delete this comment?", "Confirm Delete", 1)
+    
+    if result = 1 then
+        dim query as string
+        query = "UPDATE comments SET soft_delete=1, updated_datetime='" & get_current_datetime() & _
+                "' WHERE id=" & cstr(current_comment_id)
+        
+        db.execute(query)
+        db.commit()
+        
+        msgbox "Comment deleted successfully!", "Success", 0
+        load_comments(current_task_id)
+        clear_comment_fields()
+    end if
+end sub
+
+' Comments listview selection
+sub comments_listview_select(index as integer)
+    if index < 0 then
+        exit sub
+    end if
+    
+    dim comment_id_str as string
+    comment_id_str = comments_listview.cells[index][0]
+    current_comment_id = cint(comment_id_str)
+    
+    show_comment_details(current_comment_id)
+end sub
+
+' Main listview selection
+sub listview1_select(index as integer)
+    if index < 0 then
+        exit sub
+    end if
+    
+    dim task_id_str as string
+    task_id_str = listview1.cells[index][0]
+    current_task_id = cint(task_id_str)
+    
+    show_task_details(current_task_id)
+end sub
+
+' Form load event
+sub onload()
+    init_database()
+    load_incomplete_tasks("")
+    clear_task_fields()
+    clear_comment_fields()
+    current_task_id = -1
+    current_comment_id = -1
+end sub
+
+' Form close event
+sub onclose()
+    if db is not nothing then
+        db.close()
+    end if
+end sub

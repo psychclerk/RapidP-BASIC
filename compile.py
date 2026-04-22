@@ -40,6 +40,7 @@ def main():
     argparser.add_argument("-r", "--run", action="store_true", help="Run the compiled Python code immediately")
     argparser.add_argument("-b", "--bytecode", action="store_true", help="Compile to Python bytecode (.pyc)")
     argparser.add_argument("-s", "--standalone", action="store_true", help="Build standalone executable via PyInstaller")
+    argparser.add_argument("--wx", action="store_true", help="Generate wxPython version instead of tkinter")
     argparser.add_argument("--encoding", default="utf-8", help="Source file encoding (default: utf-8, use latin-1 for legacy files)")
     argparser.add_argument("--json-errors", action="store_true", help="Output errors as JSON array (for IDE integration)")
 
@@ -58,6 +59,14 @@ def main():
             source_code = f.read()
 
         py_code, errors = compile_code(source_code, file_path=args.source)
+        
+        # Inject wxPython import if --wx flag is set
+        if args.wx:
+            # Replace tkinter import with wxPython runtime
+            py_code = py_code.replace('from rp_runtime.gui import', 'from rp_runtime.gui_wx import')
+            # Ensure run_app is called correctly for wx
+            if 'get_app().run()' in py_code:
+                py_code = py_code.replace('get_app().run()', 'run_app()')
 
         # Handle semantic errors
         if errors.has_errors:
@@ -74,13 +83,15 @@ def main():
         output_file = args.output
         if not output_file:
             base, _ = os.path.splitext(args.source)
-            output_file = base + ".py"
+            suffix = "_wx" if args.wx else ""
+            output_file = base + suffix + ".py"
 
         with open(output_file, 'w', encoding='utf-8') as f:
             f.write(py_code)
 
         if not args.json_errors:
-            print(f"Successfully compiled '{args.source}' to '{output_file}'")
+            backend = "wxPython" if args.wx else "tkinter"
+            print(f"Successfully compiled '{args.source}' to '{output_file}' ({backend} backend)")
 
         if args.bytecode:
             import py_compile

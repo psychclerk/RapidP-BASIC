@@ -35,6 +35,27 @@ def showmessage(msg: str):
     get_tk_root()
     messagebox.showinfo("Message", str(msg))
 
+def msgbox(prompt, title="Message", flags=0):
+    """Display a message box.
+    
+    Args:
+        prompt: Message text
+        title: Window title
+        flags: 0=OK only, 1=Yes/No, 2=Retry/Cancel
+        
+    Returns:
+        1 for OK/Yes/Retry, 0 for No/Cancel
+    """
+    if flags == 1:
+        result = messagebox.askyesno(title, prompt)
+        return 1 if result else 0
+    elif flags == 2:
+        result = messagebox.askretrycancel(title, prompt)
+        return 1 if result else 0
+    else:
+        messagebox.showinfo(title, prompt)
+        return 1
+
 def rp_print(*args, **kwargs):
     """Replacement for RapidP PRINT statement."""
     print(*args, **kwargs)

@@ -20,7 +20,7 @@ COMPONENT_REGISTRY = {
                     'setfocus', 'bringtofront', 'sendtoback', 'update'},
         'events': {'onclick', 'onclose', 'onresize', 'onshow', 'onhide', 'onactivate',
                    'ondeactivate', 'onpaint', 'onmousemove', 'onmousedown', 'onmouseup',
-                   'onkeydown', 'onkeyup', 'onkeypress', 'ondblclick', 'ontimer'}
+                   'onkeydown', 'onkeyup', 'onkeypress', 'ondblclick', 'ontimer', 'onload'}
     },
     'PBUTTON': {
         'props': {'caption', 'width', 'height', 'top', 'left', 'visible', 'enabled', 'font',
@@ -31,7 +31,7 @@ COMPONENT_REGISTRY = {
     'PLABEL': {
         'props': {'caption', 'width', 'height', 'top', 'left', 'visible', 'enabled', 'font',
                   'fontsize', 'fontcolor', 'color', 'alignment', 'autosize', 'wordwrap', 'transparent',
-                  'hint', 'showhint', 'cursor', 'tag', 'parent'},
+                  'hint', 'showhint', 'cursor', 'tag', 'parent', 'fontbold', 'fontitalic', 'fontunderline'},
         'methods': {'repaint', 'refresh'},
         'events': {'onclick', 'ondblclick', 'onmousedown', 'onmouseup', 'onmousemove'}
     },
@@ -62,7 +62,7 @@ COMPONENT_REGISTRY = {
         'props': {'caption', 'checked', 'width', 'height', 'top', 'left', 'visible', 'enabled',
                   'font', 'fontsize', 'fontcolor', 'color', 'state', 'hint', 'showhint', 'cursor', 'tag', 'parent'},
         'methods': {'setfocus', 'repaint', 'refresh'},
-        'events': {'onclick'}
+        'events': {'onclick', 'onchange'}
     },
     'PRADIOBUTTON': {
         'props': {'caption', 'checked', 'width', 'height', 'top', 'left', 'visible', 'enabled',
@@ -122,7 +122,7 @@ COMPONENT_REGISTRY = {
     },
     'PTABCONTROL': {
         'props': {'tabindex', 'tabcount', 'width', 'height', 'top', 'left', 'visible', 'enabled',
-                  'font', 'fontsize', 'fontcolor', 'color', 'hint', 'showhint', 'cursor', 'tag', 'parent'},
+                  'font', 'fontsize', 'fontcolor', 'color', 'hint', 'showhint', 'cursor', 'tag', 'parent', 'caption'},
         'methods': {'addtab', 'addtabs', 'deletetab', 'repaint', 'refresh', 'tab'},
         'events': {'onchange', 'onclick'}
     },
@@ -164,9 +164,9 @@ COMPONENT_REGISTRY = {
         'props': {'width', 'height', 'top', 'left', 'visible', 'enabled', 'viewstyle', 'multiselect',
                   'gridlines', 'checkboxes', 'rowselect', 'sorttype', 'sortcolumn', 'itemcount',
                   'itemindex', 'font', 'fontsize', 'fontcolor', 'color', 'hint', 'showhint',
-                  'cursor', 'tag', 'parent', 'smallimages', 'largeimages', 'columns'},
-        'methods': {'addcolumn', 'additem', 'deleteitem', 'clear', 'setfocus', 'repaint', 'refresh',
-                    'itemcheck', 'subitem'},
+                  'cursor', 'tag', 'parent', 'smallimages', 'largeimages', 'columns', 'selectedindex'},
+        'methods': {'addcolumn', 'additem', 'addrow', 'deleteitem', 'clear', 'setfocus', 'repaint', 'refresh',
+                    'itemcheck', 'subitem', 'insertitem', 'setitem', 'getitem', 'setcolumnwidth', 'setcolumntext'},
         'events': {'onclick', 'ondblclick', 'oncolumnclick', 'onchange', 'onitemcheck'}
     },
     'PFILESTREAM': {
@@ -708,6 +708,8 @@ class CodeGenerator:
         'run', 'end', 'fileexists', 'shellwait',
         # Python-side names
         'open_func', 'close_func', 'print_hash',
+        # MsgBox variants
+        'MsgBox', 'msgbox',
     ])
         
     def _emit(self, code: str) -> str:
@@ -757,7 +759,7 @@ class CodeGenerator:
             'PCOMBOBOX': 'PComboBox', 'PLISTBOX': 'PListBox', 
             'PCHECKBOX': 'PCheckBox', 'PRADIOBUTTON': 'PRadioButton',
             'PRICHEDIT': 'PRichEdit', 'PSTRINGGRID': 'PStringGrid',
-            'PIMAGE': 'PImage', 'PSCROLLBAR': 'PScrollBar', 'PTABCONTROL': 'PTabControl',
+            'PIMAGE': 'PImage', 'PSCROLLBAR': 'PScrollBar', 'PTABCONTROL': 'PTabControl', 'PTABITEM': 'PTabItem',
             'PGROUPBOX': 'PGroupBox', 'PMYSQL': 'PMySQL', 'PSQLITE': 'PSQLite',
             'PPROGRESSBAR': 'PProgressBar', 'PLISTVIEW': 'PListView',
             'POPENDIALOG': 'POpenDialog', 'PSAVEDIALOG': 'PSaveDialog', 'PFILESTREAM': 'PFileStream',
@@ -1088,11 +1090,11 @@ class CodeGenerator:
         else:
              name = raw_name.rstrip('$%#&!')
         
-        intercepts = {'dir': 'dir_func', 'command': 'command_func', 'str': 'str_func', 'date': 'date_func', 'delete': 'delete_func', 'format': 'format_func', 'sleep': 'sleep_func', 'hex': 'hex_func', 'bin': 'bin_func', 'oct': 'oct_func', 'round': 'round_func', 'insert': 'insert_func', 'replace': 'replace_func', 'reverse': 'reverse_func', 'field': 'field_func', 'mkdir': 'mkdir_func', 'rmdir': 'rmdir_func', 'kill': 'kill_func', 'rename': 'rename_func', 'messagebox': 'messagebox_func', 'run': 'run_func', 'end': 'end_func', 'input': 'input_func', 'floor': 'floor_func'}
+        intercepts = {'dir': 'dir_func', 'command': 'command_func', 'str': 'str_func', 'date': 'date_func', 'delete': 'delete_func', 'format': 'format_func', 'sleep': 'sleep_func', 'hex': 'hex_func', 'bin': 'bin_func', 'oct': 'oct_func', 'round': 'round_func', 'insert': 'insert_func', 'replace': 'replace_func', 'reverse': 'reverse_func', 'field': 'field_func', 'mkdir': 'mkdir_func', 'rmdir': 'rmdir_func', 'kill': 'kill_func', 'rename': 'rename_func', 'messagebox': 'messagebox_func', 'msgbox': 'MsgBox', 'run': 'run_func', 'end': 'end_func', 'input': 'input_func', 'floor': 'floor_func'}
         name = intercepts.get(name, name)
         
         if self.create_obj_stack:
-            known_builtins = ['rp_print', 'chr', 'asc', 'left', 'right', 'mid', 'len', 'instr', 'ucase', 'lcase', 'val', 'str_func', 'abs', 'atn', 'cos', 'sin', 'exp', 'log', 'sqr', 'rnd', 'timer', 'input_func', 'int', 'float', 'dir_func', 'direxists', 'chdir', 'ceil', 'acos', 'asin', 'command_func', 'date_func', 'delete_func', 'format_func', 'hextodec', 'callback', 'callfunc', 'varptr', 'varptr_str', 'vartype', 'sound', 'sleep_func', 'shell', 'showmessage', 'space', 'string', 'ltrim', 'rtrim', 'trim', 'hex_func', 'bin_func', 'oct_func', 'environ', 'curdir', 'tan', 'floor_func', 'fix', 'frac', 'round_func', 'sgn', 'cint', 'clng', 'iif', 'randomize', 'insert_func', 'replace_func', 'replacesubstr', 'reverse_func', 'rinstr', 'field_func', 'tally', 'strf', 'convbase', 'mkdir_func', 'rmdir_func', 'kill_func', 'rename_func', 'lbound', 'ubound', 'quicksort', 'initarray', 'doevents', 'playwav', 'rgb', 'messagebox_func', 'messagedlg', 'run_func', 'end_func', 'fileexists', 'shellwait']
+            known_builtins = ['rp_print', 'chr', 'asc', 'left', 'right', 'mid', 'len', 'instr', 'ucase', 'lcase', 'val', 'str_func', 'abs', 'atn', 'cos', 'sin', 'exp', 'log', 'sqr', 'rnd', 'timer', 'input_func', 'int', 'float', 'dir_func', 'direxists', 'chdir', 'ceil', 'acos', 'asin', 'command_func', 'date_func', 'delete_func', 'format_func', 'hextodec', 'callback', 'callfunc', 'varptr', 'varptr_str', 'vartype', 'sound', 'sleep_func', 'shell', 'showmessage', 'space', 'string', 'ltrim', 'rtrim', 'trim', 'hex_func', 'bin_func', 'oct_func', 'environ', 'curdir', 'tan', 'floor_func', 'fix', 'frac', 'round_func', 'sgn', 'cint', 'clng', 'iif', 'randomize', 'insert_func', 'replace_func', 'replacesubstr', 'reverse_func', 'rinstr', 'field_func', 'tally', 'strf', 'convbase', 'mkdir_func', 'rmdir_func', 'kill_func', 'rename_func', 'lbound', 'ubound', 'quicksort', 'initarray', 'doevents', 'playwav', 'rgb', 'messagebox_func', 'messagedlg', 'MsgBox', 'run_func', 'end_func', 'fileexists', 'shellwait']
             if name not in known_builtins:
                 # Inside CREATE block, this is a method call on the component — skip global call validation
                 name = f"{self.create_obj_stack[-1]}.{name}"
@@ -1263,7 +1265,7 @@ class CodeGenerator:
             'PCOMBOBOX': 'PComboBox', 'PLISTBOX': 'PListBox', 
             'PCHECKBOX': 'PCheckBox', 'PRADIOBUTTON': 'PRadioButton',
             'PRICHEDIT': 'PRichEdit', 'PSTRINGGRID': 'PStringGrid',
-            'PIMAGE': 'PImage', 'PSCROLLBAR': 'PScrollBar', 'PTABCONTROL': 'PTabControl',
+            'PIMAGE': 'PImage', 'PSCROLLBAR': 'PScrollBar', 'PTABCONTROL': 'PTabControl', 'PTABITEM': 'PTabItem',
             'PGROUPBOX': 'PGroupBox', 'PMYSQL': 'PMySQL', 'PSQLITE': 'PSQLite',
             'PPROGRESSBAR': 'PProgressBar', 'PLISTVIEW': 'PListView',
             'POPENDIALOG': 'POpenDialog', 'PSAVEDIALOG': 'PSaveDialog', 'PFILESTREAM': 'PFileStream',
@@ -1408,7 +1410,7 @@ class CodeGenerator:
         else:
              name = raw_name.rstrip('$%#&!')
         
-        intercepts = {'dir': 'dir_func', 'command': 'command_func', 'str': 'str_func', 'date': 'date_func', 'delete': 'delete_func', 'format': 'format_func', 'sleep': 'sleep_func', 'hex': 'hex_func', 'bin': 'bin_func', 'oct': 'oct_func', 'round': 'round_func', 'insert': 'insert_func', 'replace': 'replace_func', 'reverse': 'reverse_func', 'field': 'field_func', 'mkdir': 'mkdir_func', 'rmdir': 'rmdir_func', 'kill': 'kill_func', 'rename': 'rename_func', 'messagebox': 'messagebox_func', 'run': 'run_func', 'end': 'end_func', 'input': 'input_func', 'floor': 'floor_func'}
+        intercepts = {'dir': 'dir_func', 'command': 'command_func', 'str': 'str_func', 'date': 'date_func', 'delete': 'delete_func', 'format': 'format_func', 'sleep': 'sleep_func', 'hex': 'hex_func', 'bin': 'bin_func', 'oct': 'oct_func', 'round': 'round_func', 'insert': 'insert_func', 'replace': 'replace_func', 'reverse': 'reverse_func', 'field': 'field_func', 'mkdir': 'mkdir_func', 'rmdir': 'rmdir_func', 'kill': 'kill_func', 'rename': 'rename_func', 'messagebox': 'messagebox_func', 'msgbox': 'MsgBox', 'run': 'run_func', 'end': 'end_func', 'input': 'input_func', 'floor': 'floor_func'}
         name = intercepts.get(name, name)
         
         # Check if it's an array indexing call that fell through
@@ -1428,7 +1430,7 @@ class CodeGenerator:
         self._check_call_exists(name, len(node.args), node)
             
         if self.create_obj_stack:
-             known_builtins = ['rp_print', 'chr', 'asc', 'left', 'right', 'mid', 'len', 'instr', 'ucase', 'lcase', 'val', 'str_func', 'abs', 'atn', 'cos', 'sin', 'exp', 'log', 'sqr', 'rnd', 'timer', 'input_func', 'int', 'float', 'dir_func', 'direxists', 'chdir', 'ceil', 'acos', 'asin', 'command_func', 'date_func', 'delete_func', 'format_func', 'hextodec', 'callback', 'callfunc', 'varptr', 'varptr_str', 'vartype', 'sound', 'sleep_func', 'shell', 'showmessage', 'space', 'string', 'ltrim', 'rtrim', 'trim', 'hex_func', 'bin_func', 'oct_func', 'environ', 'curdir', 'tan', 'floor_func', 'fix', 'frac', 'round_func', 'sgn', 'cint', 'clng', 'iif', 'randomize', 'insert_func', 'replace_func', 'replacesubstr', 'reverse_func', 'rinstr', 'field_func', 'tally', 'strf', 'convbase', 'mkdir_func', 'rmdir_func', 'kill_func', 'rename_func', 'lbound', 'ubound', 'quicksort', 'initarray', 'doevents', 'playwav', 'rgb', 'messagebox_func', 'messagedlg', 'run_func', 'end_func', 'fileexists', 'shellwait']
+             known_builtins = ['rp_print', 'chr', 'asc', 'left', 'right', 'mid', 'len', 'instr', 'ucase', 'lcase', 'val', 'str_func', 'abs', 'atn', 'cos', 'sin', 'exp', 'log', 'sqr', 'rnd', 'timer', 'input_func', 'int', 'float', 'dir_func', 'direxists', 'chdir', 'ceil', 'acos', 'asin', 'command_func', 'date_func', 'delete_func', 'format_func', 'hextodec', 'callback', 'callfunc', 'varptr', 'varptr_str', 'vartype', 'sound', 'sleep_func', 'shell', 'showmessage', 'space', 'string', 'ltrim', 'rtrim', 'trim', 'hex_func', 'bin_func', 'oct_func', 'environ', 'curdir', 'tan', 'floor_func', 'fix', 'frac', 'round_func', 'sgn', 'cint', 'clng', 'iif', 'randomize', 'insert_func', 'replace_func', 'replacesubstr', 'reverse_func', 'rinstr', 'field_func', 'tally', 'strf', 'convbase', 'mkdir_func', 'rmdir_func', 'kill_func', 'rename_func', 'lbound', 'ubound', 'quicksort', 'initarray', 'doevents', 'playwav', 'rgb', 'messagebox_func', 'messagedlg', 'MsgBox', 'run_func', 'end_func', 'fileexists', 'shellwait']
              if name not in known_builtins:
                  target = f"{self.create_obj_stack[-1]}.{name}"
              else:

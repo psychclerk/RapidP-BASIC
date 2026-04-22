@@ -1,16 +1,31 @@
-.DS_Store
-.vscode
-*.bak
-*_old.*
-*.db
-__pycache__
-compiler/__pycache__
-runtime/__pycache__
-tests/__pycache__
-examples/*.db
-examples/*.py
-examples/_ide_output.py
-examples/_ide_output.pyc
-examples/_ide_output.rp
-examples/_ide_errors.json
-utilities/vscodeext/rapidp/*.vsix
+```
+# Compiled Python files
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Logs and temp files
+*.log
+*.tmp
+*.swp
+
+# Environment files
+.env
+.env.local
+*.env.*
+
+# Editors
+.vscode/
+.idea/
+
+# Dependencies
+.venv/
+venv/
+node_modules/
+
+# Build artifacts
+dist/
+build/
+target/
+```

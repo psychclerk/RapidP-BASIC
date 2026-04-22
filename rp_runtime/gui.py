@@ -50,6 +50,28 @@ def _bgr_to_hex(value):
     return None
 
 
+def MsgBox(prompt, title="Message", flags=0):
+    """Display a message box.
+    
+    Args:
+        prompt: Message text
+        title: Window title
+        flags: 0=OK only, 1=Yes/No, 2=Retry/Cancel
+        
+    Returns:
+        1 for OK/Yes/Retry, 0 for No/Cancel
+    """
+    if flags == 1:
+        result = messagebox.askyesno(title, prompt)
+        return 1 if result else 0
+    elif flags == 2:
+        result = messagebox.askretrycancel(title, prompt)
+        return 1 if result else 0
+    else:
+        messagebox.showinfo(title, prompt)
+        return 1
+
+
 import sys as _sys
 _DEFAULT_FONT_FAMILY = "Segoe UI" if _sys.platform == "win32" else "Helvetica"
 _DEFAULT_FONT_SIZE = 9
@@ -652,6 +674,26 @@ class PForm(PWidget):
         self.trigger_event('onclose')
         self.close()
 
+    # ── OnLoad event for PForm (triggered when form is first shown) ──────────────────────────────────────
+    @property
+    def onload(self): return self._events.get('onload')
+    @onload.setter
+    def onload(self, value):
+        self._events['onload'] = value
+        # Trigger onload once when the form is first shown
+        def _show_wrapper(*args):
+            if not getattr(self, '_onload_triggered', False):
+                self._onload_triggered = True
+                self.trigger_event('onload')
+            self.trigger_event('onshow')
+        # Replace the onshow trigger to also call onload
+        original_show = self.show
+        def new_show():
+            self._visible = True
+            self.widget.deiconify()
+            _show_wrapper()
+        self.show = new_show
+
     # ── OnResize event for PForm ──────────────────────────────────────
     @property
     def onresize(self): return self._events.get('onresize')
@@ -715,6 +757,11 @@ class PLabel(PWidget):
      def __init__(self, parent=None):
          super().__init__(parent)
          p_widget = parent.widget if parent else get_root()
+         self._alignment = 0  # 0=left, 1=center, 2=right
+         self._multiline = 0
+         self._fontbold = False
+         self._fontitalic = False
+         self._fontunderline = False
          self.widget = tk.Label(p_widget, text=self.caption, anchor='w')
          self.widget.place(x=self.left, y=self.top, width=self.width, height=self.height)
 
@@ -724,6 +771,50 @@ class PLabel(PWidget):
      def caption(self, value):
          self._caption = str(value).replace('&', '')
          self.widget.config(text=self._caption)
+     
+     @property
+     def alignment(self): return self._alignment
+     @alignment.setter
+     def alignment(self, value):
+         self._alignment = int(value)
+         anchors = ['w', 'center', 'e']
+         if 0 <= self._alignment < len(anchors):
+             self.widget.config(anchor=anchors[self._alignment])
+     
+     @property
+     def multiline(self): return self._multiline
+     @multiline.setter
+     def multiline(self, value):
+         self._multiline = int(value)
+         if self._multiline:
+             self.widget.config(wraplength=self.width - 5)
+     
+     @property
+     def fontbold(self): return self._fontbold
+     @fontbold.setter
+     def fontbold(self, value):
+         self._fontbold = bool(value)
+         self._update_font()
+     
+     @property
+     def fontitalic(self): return self._fontitalic
+     @fontitalic.setter
+     def fontitalic(self, value):
+         self._fontitalic = bool(value)
+         self._update_font()
+     
+     @property
+     def fontunderline(self): return self._fontunderline
+     @fontunderline.setter
+     def fontunderline(self, value):
+         self._fontunderline = bool(value)
+         self._update_font()
+     
+     def _update_font(self):
+         weight = 'bold' if self._fontbold else 'normal'
+         slant = 'italic' if self._fontitalic else 'roman'
+         underline = 1 if self._fontunderline else 0
+         self.widget.config(font=(self.fontname or 'TkDefaultFont', self.fontsize or 9, weight, slant), underline=underline)
 
 class PEdit(PWidget):
     def __init__(self, parent=None):
@@ -1126,12 +1217,29 @@ class PTabControl(PWidget):
         self.widget = ttk.Notebook(p_widget)
         self.widget.place(x=self.left, y=self.top, width=self.width, height=self.height)
         self._tabs = []
+        self._tab_names = []
+
+    @property
+    def caption(self): return getattr(self, '_caption', '')
+    @caption.setter
+    def caption(self, value):
+        # PTabControl doesn't have a caption, but allow setting it to avoid errors
+        self._caption = str(value)
 
     def addtabs(self, *args):
         for name in args:
             frame = tk.Frame(self.widget)
             self.widget.add(frame, text=name)
             self._tabs.append(frame)
+            self._tab_names.append(name)
+
+    def addtab(self, name):
+        """Add a single tab and return its frame."""
+        frame = tk.Frame(self.widget)
+        self.widget.add(frame, text=name)
+        self._tabs.append(frame)
+        self._tab_names.append(name)
+        return frame
 
     def tab(self, index):
         """Return the tab frame at index so children can parent to it."""
@@ -1139,6 +1247,13 @@ class PTabControl(PWidget):
         if 0 <= idx < len(self._tabs):
             return self._tabs[idx]
         return None
+    
+    def tabname(self, index):
+        """Return the name of the tab at index."""
+        idx = int(index)
+        if 0 <= idx < len(self._tab_names):
+            return self._tab_names[idx]
+        return ""
 
     @property
     def tabindex(self):
@@ -1149,6 +1264,10 @@ class PTabControl(PWidget):
     def tabindex(self, val):
         try: self.widget.select(self._tabs[int(val)])
         except: pass
+    
+    @property
+    def tabcount(self):
+        return len(self._tabs)
 
     @property
     def onchange(self): return self._events.get('onchange')
@@ -1156,6 +1275,37 @@ class PTabControl(PWidget):
     def onchange(self, value):
         self._events['onchange'] = value
         self.widget.bind('<<NotebookTabChanged>>', lambda e: self.trigger_event('onchange'))
+
+class PTabItem:
+    """PTabItem - Represents a tab page within a PTabControl.
+    
+    This is a helper class used during construction to allow nested CREATE blocks.
+    The actual tab is created by PTabControl.addtab().
+    """
+    def __init__(self, parent=None, caption="Tab"):
+        self._parent = parent
+        self._caption = caption
+        self._frame = None
+        if parent and hasattr(parent, 'addtab'):
+            self._frame = parent.addtab(caption)
+    
+    @property
+    def caption(self):
+        return self._caption
+    
+    @caption.setter
+    def caption(self, value):
+        self._caption = value
+        # Update the tab text if possible
+        if self._parent and hasattr(self._parent, 'widget') and self._frame:
+            idx = self._parent._tabs.index(self._frame) if self._frame in self._parent._tabs else -1
+            if idx >= 0:
+                self._parent.widget.tab(idx, text=value)
+    
+    @property
+    def widget(self):
+        """Return the underlying frame widget for parenting other controls."""
+        return self._frame
 
 class PGroupBox(PWidget):
     def __init__(self, parent=None):
@@ -1176,6 +1326,13 @@ class PCheckBox(PWidget):
     def checked(self): return self.var.get()
     @checked.setter
     def checked(self, val): self.var.set(bool(val))
+    
+    @property
+    def onchange(self): return self._events.get('onchange')
+    @onchange.setter
+    def onchange(self, value):
+        self._events['onchange'] = value
+        self.widget.bind('<ButtonRelease-1>', lambda e: self.trigger_event('onchange'))
 
 class PRadioButton(PWidget):
     def __init__(self, parent=None):
@@ -2065,6 +2222,18 @@ class PStringGrid(PWidget):
 
     @property
     def rows(self): return len(self._data)
+    @rows.setter
+    def rows(self, val):
+        val = int(val)
+        current = len(self._data)
+        if val > current:
+            # Add empty rows
+            for _ in range(val - current):
+                self._data.append([''] * self._cols)
+        elif val < current:
+            # Remove rows
+            self._data = self._data[:val]
+        self._redraw()
 
     @property
     def colwidth(self): return self._col_widths[0] if self._col_widths else 100
@@ -2087,6 +2256,29 @@ class PStringGrid(PWidget):
     @property
     def col(self):
         return self._edit_col if self._edit_col >= 0 else self._selected_col
+
+    @property
+    def cells(self):
+        """Return a proxy object that supports cells[row][col] access for both get and set."""
+        class CellsProxy:
+            def __init__(self, grid):
+                self._grid = grid
+            def __getitem__(self, row):
+                class RowProxy:
+                    def __init__(self, grid, row):
+                        self._grid = grid
+                        self._row = row
+                    def __getitem__(self, col):
+                        return self._grid.cell(self._row, col)
+                    def __setitem__(self, col, value):
+                        self._grid.setcell(self._row, col, value)
+                return RowProxy(self._grid, row)
+            def __setitem__(self, row, value):
+                # Allow setting an entire row: grid.cells[row] = ['val1', 'val2', ...]
+                if isinstance(value, (list, tuple)):
+                    for col, val in enumerate(value):
+                        self._grid.setcell(row, col, val)
+        return CellsProxy(self)
 
     @property
     def ondblclick(self): return self._events.get('ondblclick')
@@ -2410,20 +2602,243 @@ class PProgressBar(PWidget):
         self.widget['maximum'] = val
 
 class PListView(PWidget):
+    """RapidP PListView — multi-column list view for displaying data (like database results).
+    
+    Supports both single-column (list) and multi-column (report/details) modes.
+    Ideal for displaying database query results.
+    """
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.widget = ttk.Treeview(parent.widget if parent else get_root(), show='tree')
-        self.widget.place(x=self.left, y=self.top, width=self.width, height=self.height)
-        self._items = []
-
+        p_widget = parent.widget if parent else get_root()
+        
+        # Create frame to hold treeview and scrollbars
+        self._frame = tk.Frame(p_widget)
+        self._frame.place(x=self.left, y=self.top, width=self.width, height=self.height)
+        
+        # Create Treeview with columns support
+        self.widget = ttk.Treeview(self._frame, show='headings', selectmode='extended')
+        
+        # Add scrollbars
+        self._vsb = ttk.Scrollbar(self._frame, orient='vertical', command=self.widget.yview)
+        self._hsb = ttk.Scrollbar(self._frame, orient='horizontal', command=self.widget.xview)
+        self.widget.configure(yscrollcommand=self._vsb.set, xscrollcommand=self._hsb.set)
+        
+        # Grid layout for treeview and scrollbars
+        self.widget.grid(row=0, column=0, sticky='nsew')
+        self._vsb.grid(row=0, column=1, sticky='ns')
+        self._hsb.grid(row=1, column=0, sticky='ew')
+        
+        # Make the treeview expandable
+        self._frame.grid_rowconfigure(0, weight=1)
+        self._frame.grid_columnconfigure(0, weight=1)
+        
+        self._columns = []  # List of column identifiers
+        self._column_widths = {}  # Map of column id -> width
+        self._items = {}  # Map of iid -> item data
+        self._item_count = 0
+        
+        # Default single column
+        self.addcolumn('Item', 150)
+        
+        # Bind events
+        self.widget.bind('<<TreeviewSelect>>', lambda e: self.trigger_event('onchange'))
+        self.widget.bind('<Double-Button-1>', lambda e: self.trigger_event('ondblclick'))
+        self.widget.bind('<ButtonPress-1>', lambda e: self.trigger_event('onclick'))
+        
+    def _place_widget(self):
+        """Override to handle frame placement."""
+        if self._frame and self._visible:
+            self._frame.place(x=self._left, y=self._top, width=self._width, height=self._height)
+        elif self._frame:
+            self._frame.place_forget()
+    
+    @property
+    def visible(self):
+        return 1 if self._visible else 0
+    @visible.setter
+    def visible(self, value):
+        self._visible = bool(int(value))
+        self._place_widget()
+    
+    def addcolumn(self, header, width=100, anchor='w'):
+        """Add a column to the listview.
+        
+        Args:
+            header: Column header text
+            width: Column width in pixels
+            anchor: Text alignment ('w', 'e', 'c', 'n', 's')
+        """
+        col_id = f'col_{len(self._columns)}'
+        self._columns.append(col_id)
+        self._column_widths[col_id] = int(width)
+        self.widget['columns'] = self._columns
+        self.widget.heading(col_id, text=header)
+        self.widget.column(col_id, width=int(width), anchor=anchor, minwidth=50)
+        return len(self._columns) - 1
+    
+    def setcolumnwidth(self, index, width):
+        """Set the width of a column by index."""
+        idx = int(index)
+        if 0 <= idx < len(self._columns):
+            col_id = self._columns[idx]
+            self._column_widths[col_id] = int(width)
+            self.widget.column(col_id, width=int(width))
+    
+    def setcolumntext(self, index, text):
+        """Set the header text of a column by index."""
+        idx = int(index)
+        if 0 <= idx < len(self._columns):
+            col_id = self._columns[idx]
+            self.widget.heading(col_id, text=str(text))
+    
+    def additem(self, *values):
+        """Add an item (row) to the listview.
+        
+        Args:
+            values: Variable number of column values
+            
+        Returns:
+            Item index (0-based)
+        """
+        self._item_count += 1
+        iid = f'item_{self._item_count}'
+        
+        # Pad values to match column count
+        val_list = list(values)
+        while len(val_list) < len(self._columns):
+            val_list.append('')
+        
+        # Insert into treeview (first column value goes to first special column '#0' if exists, otherwise use first column)
+        if len(self._columns) > 0:
+            self.widget.insert('', 'end', iid=iid, values=val_list[:len(self._columns)])
+        else:
+            self.widget.insert('', 'end', iid=iid, text=str(values[0]) if values else '')
+        
+        self._items[iid] = val_list
+        return self._item_count - 1
+    
     def additems(self, *items):
-        for it in items:
-            self.widget.insert('', 'end', text=str(it))
-            self._items.append(it)
+        """Add multiple items. Each item can be a single value or tuple/list of values."""
+        for item in items:
+            if isinstance(item, (list, tuple)):
+                self.additem(*item)
+            else:
+                self.additem(str(item))
+    
+    def addrow(self, *values):
+        """Alias for additem - adds a row to the listview."""
+        return self.additem(*values)
+    
+    def insertitem(self, index, *values):
+        """Insert an item at a specific position."""
+        idx = int(index)
+        self._item_count += 1
+        iid = f'item_{self._item_count}'
+        
+        val_list = list(values)
+        while len(val_list) < len(self._columns):
+            val_list.append('')
+        
+        # Get iid of item after insertion point
+        children = self.widget.get_children()
+        if idx < len(children):
+            after_iid = children[idx]
+            self.widget.insert(self.widget.parent(after_iid), idx, iid=iid, values=val_list[:len(self._columns)])
+        else:
+            self.widget.insert('', 'end', iid=iid, values=val_list[:len(self._columns)])
+        
+        self._items[iid] = val_list
+        return idx
+    
+    def deleteitem(self, index):
+        """Delete an item by index."""
+        idx = int(index)
+        children = self.widget.get_children()
+        if 0 <= idx < len(children):
+            iid = children[idx]
+            self.widget.delete(iid)
+            if iid in self._items:
+                del self._items[iid]
     
     def clear(self):
+        """Remove all items from the listview."""
         self.widget.delete(*self.widget.get_children())
-        self._items = []
+        self._items.clear()
+        self._item_count = 0
+    
+    def setitem(self, index, *values):
+        """Update an existing item's values."""
+        idx = int(index)
+        children = self.widget.get_children()
+        if 0 <= idx < len(children):
+            iid = children[idx]
+            val_list = list(values)
+            while len(val_list) < len(self._columns):
+                val_list.append('')
+            self.widget.item(iid, values=val_list[:len(self._columns)])
+            self._items[iid] = val_list
+    
+    def getitem(self, index):
+        """Get an item's values as a tuple."""
+        idx = int(index)
+        children = self.widget.get_children()
+        if 0 <= idx < len(children):
+            iid = children[idx]
+            return tuple(self.widget.item(iid, 'values'))
+        return ()
+    
+    @property
+    def itemcount(self):
+        """Return the number of items in the listview."""
+        return len(self.widget.get_children())
+    
+    @property
+    def selectedindex(self):
+        """Return the index of the first selected item, or -1 if none selected."""
+        sel = self.widget.selection()
+        if sel:
+            children = self.widget.get_children()
+            try:
+                return children.index(sel[0])
+            except ValueError:
+                return -1
+        return -1
+    
+    @property
+    def selectedindices(self):
+        """Return a list of all selected item indices."""
+        sel = self.widget.selection()
+        children = self.widget.get_children()
+        return [children.index(iid) for iid in sel if iid in children]
+    
+    @selectedindex.setter
+    def selectedindex(self, value):
+        """Set the selected item by index."""
+        idx = int(value)
+        children = self.widget.get_children()
+        if 0 <= idx < len(children):
+            self.widget.selection_set(children[idx])
+            self.widget.see(children[idx])
+        else:
+            self.widget.selection_remove(*children)
+    
+    @property
+    def onclick(self): return self._events.get('onclick')
+    @onclick.setter
+    def onclick(self, value):
+        self._events['onclick'] = value
+    
+    @property
+    def ondblclick(self): return self._events.get('ondblclick')
+    @ondblclick.setter
+    def ondblclick(self, value):
+        self._events['ondblclick'] = value
+    
+    @property
+    def onchange(self): return self._events.get('onchange')
+    @onchange.setter
+    def onchange(self, value):
+        self._events['onchange'] = value
 
 class POpenDialog(PObject):
     def __init__(self):
