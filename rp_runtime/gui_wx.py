@@ -3,6 +3,7 @@ RapidP-BASIC wxPython GUI Runtime
 Mirrors the interface of gui.py (tkinter) for wxPython backend
 """
 import wx
+import wx.grid as wxgrid
 import datetime
 import os
 
@@ -574,11 +575,11 @@ class PListView(PComponent, ControlMixin):
 class PStringGrid(PComponent, ControlMixin):
     def __init__(self, parent):
         real_parent = _get_wx_parent(parent)
-        handle = wx.grid.Grid(real_parent, -1)
+        handle = wxgrid.Grid(real_parent, -1)
         super().__init__(handle)
         self.parent = parent
-        handle.Bind(wx.grid.EVT_GRID_CELL_CHANGE, lambda e: self.trigger_event('onchange'))
-        handle.Bind(wx.grid.EVT_GRID_SELECT_CELL, lambda e: self.trigger_event('onclick'))
+        handle.Bind(wxgrid.EVT_GRID_CELL_CHANGE, lambda e: self.trigger_event('onchange'))
+        handle.Bind(wxgrid.EVT_GRID_SELECT_CELL, lambda e: self.trigger_event('onclick'))
         
         self._rows = 0
         self._cols = 0
