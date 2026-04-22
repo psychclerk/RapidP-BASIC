@@ -186,10 +186,21 @@ class ControlMixin:
             else: self.handle.Hide()
     visible = property(get_visible, set_visible)
 
+# Helper function to get the actual wx parent from a RapidP component
+def _get_wx_parent(parent):
+    """Get the actual wx widget to use as parent for child controls."""
+    if hasattr(parent, '_panel'):
+        return parent._panel
+    elif hasattr(parent, 'handle'):
+        return parent.handle
+    else:
+        return parent
+
 # Label
 class PLabel(PComponent, ControlMixin):
     def __init__(self, parent):
-        handle = wx.StaticText(parent._panel, -1, "")
+        real_parent = _get_wx_parent(parent)
+        handle = wx.StaticText(real_parent, -1, "")
         super().__init__(handle)
         self.parent = parent
         self._caption = ""
@@ -204,7 +215,8 @@ class PLabel(PComponent, ControlMixin):
 # Button
 class PButton(PComponent, ControlMixin):
     def __init__(self, parent):
-        handle = wx.Button(parent._panel, -1, "Button")
+        real_parent = _get_wx_parent(parent)
+        handle = wx.Button(real_parent, -1, "Button")
         super().__init__(handle)
         self.parent = parent
         handle.Bind(wx.EVT_BUTTON, lambda e: self.trigger_event('onclick'))
@@ -218,7 +230,8 @@ class PButton(PComponent, ControlMixin):
 # Edit (TextBox)
 class PEdit(PComponent, ControlMixin):
     def __init__(self, parent):
-        handle = wx.TextCtrl(parent._panel, -1, "")
+        real_parent = _get_wx_parent(parent)
+        handle = wx.TextCtrl(real_parent, -1, "")
         super().__init__(handle)
         self.parent = parent
         handle.Bind(wx.EVT_TEXT, lambda e: self.trigger_event('onchange'))
@@ -235,7 +248,8 @@ class PEdit(PComponent, ControlMixin):
 # ComboBox
 class PComboBox(PComponent, ControlMixin):
     def __init__(self, parent):
-        handle = wx.ComboBox(parent._panel, -1, "", choices=[], style=wx.CB_DROPDOWN)
+        real_parent = _get_wx_parent(parent)
+        handle = wx.ComboBox(real_parent, -1, "", choices=[], style=wx.CB_DROPDOWN)
         super().__init__(handle)
         self.parent = parent
         handle.Bind(wx.EVT_COMBOBOX, lambda e: self.trigger_event('onchange'))
@@ -265,7 +279,8 @@ class PComboBox(PComponent, ControlMixin):
 # ListBox
 class PListBox(PComponent, ControlMixin):
     def __init__(self, parent):
-        handle = wx.ListBox(parent._panel, -1, choices=[])
+        real_parent = _get_wx_parent(parent)
+        handle = wx.ListBox(real_parent, -1, choices=[])
         super().__init__(handle)
         self.parent = parent
         handle.Bind(wx.EVT_LISTBOX, lambda e: self.trigger_event('onclick'))
@@ -286,7 +301,8 @@ class PListBox(PComponent, ControlMixin):
 # CheckBox
 class PCheckBox(PComponent, ControlMixin):
     def __init__(self, parent):
-        handle = wx.CheckBox(parent._panel, -1, "Check")
+        real_parent = _get_wx_parent(parent)
+        handle = wx.CheckBox(real_parent, -1, "Check")
         super().__init__(handle)
         self.parent = parent
         handle.Bind(wx.EVT_CHECKBOX, lambda e: self.trigger_event('onchange'))
@@ -307,7 +323,8 @@ class PCheckBox(PComponent, ControlMixin):
 class PRadioButton(PComponent, ControlMixin):
     def __init__(self, parent):
         # In wx, radio buttons in same parent with same style are auto-grouped
-        handle = wx.RadioButton(parent._panel, -1, "Option", style=wx.RB_GROUP)
+        real_parent = _get_wx_parent(parent)
+        handle = wx.RadioButton(real_parent, -1, "Option", style=wx.RB_GROUP)
         super().__init__(handle)
         self.parent = parent
         handle.Bind(wx.EVT_RADIOBUTTON, lambda e: self.trigger_event('onclick'))
@@ -327,8 +344,18 @@ class PRadioButton(PComponent, ControlMixin):
 # GroupBox
 class PGroupBox(PComponent, ControlMixin):
     def __init__(self, parent):
-        handle = wx.StaticBox(parent._panel, -1, "Group")
+        # Determine the actual parent window/panel
+        if hasattr(parent, '_panel'):
+            real_parent = parent._panel
+        elif hasattr(parent, 'handle'):
+            real_parent = parent.handle
+        else:
+            real_parent = parent
+            
+        handle = wx.StaticBox(real_parent, -1, "Group")
         self.box_sizer = wx.StaticBoxSizer(handle, wx.VERTICAL)
+        # Store reference to the actual parent for child controls
+        self._panel = real_parent
         # We don't add box_sizer to parent here, user must manage layout or we assume absolute
         # For absolute positioning mimic, we just keep the handle
         super().__init__(handle)
@@ -365,7 +392,8 @@ class PTabItem(PComponent, ControlMixin):
 
 class PTabControl(PComponent, ControlMixin):
     def __init__(self, parent):
-        handle = wx.Notebook(parent._panel, -1)
+        real_parent = _get_wx_parent(parent)
+        handle = wx.Notebook(real_parent, -1)
         super().__init__(handle)
         self.parent = parent
         handle.Bind(wx.EVT_NOTEBOOK_PAGE_CHANGED, lambda e: self.trigger_event('onchange'))
@@ -382,7 +410,8 @@ class PTabControl(PComponent, ControlMixin):
 # ListView
 class PListView(PComponent, ControlMixin):
     def __init__(self, parent):
-        handle = wx.ListCtrl(parent._panel, -1, style=wx.LC_REPORT | wx.LC_SINGLE_SEL)
+        real_parent = _get_wx_parent(parent)
+        handle = wx.ListCtrl(real_parent, -1, style=wx.LC_REPORT | wx.LC_SINGLE_SEL)
         super().__init__(handle)
         self.parent = parent
         handle.Bind(wx.EVT_LIST_ITEM_SELECTED, lambda e: self.trigger_event('onclick'))
@@ -421,7 +450,8 @@ class PListView(PComponent, ControlMixin):
 # StringGrid
 class PStringGrid(PComponent, ControlMixin):
     def __init__(self, parent):
-        handle = wx.grid.Grid(parent._panel, -1)
+        real_parent = _get_wx_parent(parent)
+        handle = wx.grid.Grid(real_parent, -1)
         super().__init__(handle)
         self.parent = parent
         handle.Bind(wx.grid.EVT_GRID_CELL_CHANGE, lambda e: self.trigger_event('onchange'))
@@ -492,7 +522,8 @@ class PStringGrid(PComponent, ControlMixin):
 # ProgressBar
 class PProgressBar(PComponent, ControlMixin):
     def __init__(self, parent):
-        handle = wx.Gauge(parent._panel, -1, 100)
+        real_parent = _get_wx_parent(parent)
+        handle = wx.Gauge(real_parent, -1, 100)
         super().__init__(handle)
         self.parent = parent
 
@@ -586,7 +617,8 @@ class PMainMenu(PComponent):
 # RichEdit (Simple Multiline TextCtrl)
 class PRichEdit(PComponent, ControlMixin):
     def __init__(self, parent):
-        handle = wx.TextCtrl(parent._panel, -1, "", style=wx.TE_MULTILINE | wx.TE_RICH2)
+        real_parent = _get_wx_parent(parent)
+        handle = wx.TextCtrl(real_parent, -1, "", style=wx.TE_MULTILINE | wx.TE_RICH2)
         super().__init__(handle)
         self.parent = parent
 
@@ -599,7 +631,8 @@ class PRichEdit(PComponent, ControlMixin):
 # Panel
 class PPanel(PComponent, ControlMixin):
     def __init__(self, parent):
-        handle = wx.Panel(parent._panel, -1)
+        real_parent = _get_wx_parent(parent)
+        handle = wx.Panel(real_parent, -1)
         super().__init__(handle)
         self.parent = parent
         self._sizer = wx.BoxSizer(wx.VERTICAL)
