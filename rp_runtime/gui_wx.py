@@ -3,11 +3,23 @@ RapidP-BASIC wxPython GUI Runtime
 Mirrors the interface of gui.py (tkinter) for wxPython backend
 """
 import wx
+import wx.grid as wxgrid
 import datetime
 import os
 
 # Global app instance
 _app = None
+_fallback_parent = None
+
+
+def _bgr_to_wx_colour(value):
+    """Convert RapidP BGR integer to wx.Colour."""
+    if isinstance(value, int):
+        r = value & 0xFF
+        g = (value >> 8) & 0xFF
+        b = (value >> 16) & 0xFF
+        return wx.Colour(r, g, b)
+    return None
 
 def get_app():
     global _app
@@ -28,12 +40,42 @@ def quit_app():
         _app.ExitMainLoop()
         _app = None
 
+
+def _get_fallback_parent():
+    """Return a hidden fallback parent window for parent-less controls."""
+    global _fallback_parent
+    get_app()
+    if _fallback_parent is None or not _fallback_parent:
+        _fallback_parent = wx.Frame(None, -1, "RapidPHost")
+        _fallback_parent.Hide()
+    return _fallback_parent
+
 # Base Component Class
 class PComponent:
     def __init__(self, handle=None):
-        self.handle = handle
-        self._events = {}
-        self._tag = None
+        object.__setattr__(self, 'handle', handle)
+        object.__setattr__(self, '_events', {})
+        object.__setattr__(self, '_tag', None)
+        object.__setattr__(self, '_font', PFont(owner=self))
+
+    def __setattr__(self, name, value):
+        # RapidP transpiled code commonly assigns handlers as attributes:
+        # control.onclick = fn, form.onload = fn, timer.ontimer = fn, etc.
+        if name.startswith('on') and callable(value):
+            self.bind_event(name, value)
+        if name == 'parent':
+            handle = getattr(self, 'handle', None)
+            if handle and value is not None:
+                try:
+                    handle.Reparent(_get_wx_parent(value))
+                except Exception:
+                    pass
+        object.__setattr__(self, name, value)
+
+    def __getattr__(self, name):
+        if name.startswith('on'):
+            return self._events.get(name)
+        raise AttributeError(f"{type(self).__name__!s} object has no attribute {name!r}")
     
     def set_tag(self, tag):
         self._tag = tag
@@ -47,6 +89,86 @@ class PComponent:
     def trigger_event(self, event_name, *args):
         if event_name in self._events:
             self._events[event_name](*args)
+
+
+class PFont:
+    """RapidP-compatible font object for wx controls."""
+    def __init__(self, owner=None):
+        self._owner = owner
+        self._name = "Segoe UI" if os.name == "nt" else "Helvetica"
+        self._size = 9
+        self._color = 0
+        self._bold = 0
+        self._italic = 0
+        self._underline = 0
+        self._strikeout = 0
+
+    def _apply(self):
+        if self._owner is not None and hasattr(self._owner, "_apply_font"):
+            self._owner._apply_font()
+
+    @property
+    def name(self):
+        return self._name
+
+    @name.setter
+    def name(self, value):
+        self._name = str(value)
+        self._apply()
+
+    @property
+    def size(self):
+        return self._size
+
+    @size.setter
+    def size(self, value):
+        self._size = int(value)
+        self._apply()
+
+    @property
+    def color(self):
+        return self._color
+
+    @color.setter
+    def color(self, value):
+        self._color = int(value) if value else 0
+        self._apply()
+
+    @property
+    def bold(self):
+        return self._bold
+
+    @bold.setter
+    def bold(self, value):
+        self._bold = int(value)
+        self._apply()
+
+    @property
+    def italic(self):
+        return self._italic
+
+    @italic.setter
+    def italic(self, value):
+        self._italic = int(value)
+        self._apply()
+
+    @property
+    def underline(self):
+        return self._underline
+
+    @underline.setter
+    def underline(self, value):
+        self._underline = int(value)
+        self._apply()
+
+    @property
+    def strikeout(self):
+        return self._strikeout
+
+    @strikeout.setter
+    def strikeout(self, value):
+        self._strikeout = int(value)
+        self._apply()
 
 # Form
 class PForm(PComponent):
@@ -80,8 +202,13 @@ class PForm(PComponent):
         wx.CallAfter(self.trigger_event, 'onload')
 
     def showmodal(self):
-        # wxPython modal is different, we simulate by disabling parent if any
-        self._frame.ShowModal() if self._frame.GetParent() else self.show()
+        # RapidP expects ShowModal on the main form to block until closed.
+        # wx.Frame has no ShowModal(), so we show the frame and run the app loop
+        # if it is not already running.
+        self.show()
+        app = get_app()
+        if not app.IsMainLoopRunning():
+            app.MainLoop()
 
     def hide(self):
         self._frame.Hide()
@@ -130,6 +257,37 @@ class PForm(PComponent):
 
 # Common properties mixin for controls
 class ControlMixin:
+    @property
+    def font(self):
+        return self._font
+
+    @font.setter
+    def font(self, value):
+        self._font = value
+        self._apply_font()
+
+    def _apply_font(self):
+        if not getattr(self, "handle", None):
+            return
+        try:
+            weight = wx.FONTWEIGHT_BOLD if self._font.bold else wx.FONTWEIGHT_NORMAL
+            style = wx.FONTSTYLE_ITALIC if self._font.italic else wx.FONTSTYLE_NORMAL
+            font = wx.Font(
+                self._font.size,
+                wx.FONTFAMILY_DEFAULT,
+                style,
+                weight,
+                bool(self._font.underline),
+                self._font.name
+            )
+            self.handle.SetFont(font)
+            fg = _bgr_to_wx_colour(self._font.color)
+            if fg is not None:
+                self.handle.SetForegroundColour(fg)
+        except Exception:
+            # Keep behavior non-fatal for controls that don't support font operations.
+            pass
+
     def get_left(self):
         # wx doesn't expose left/top easily without sizers, using dummy for now or GetPosition if not in sizer
         # For proper layout, wx uses Sizers. RapidP BASIC usually uses absolute.
@@ -189,6 +347,8 @@ class ControlMixin:
 # Helper function to get the actual wx parent from a RapidP component
 def _get_wx_parent(parent):
     """Get the actual wx widget to use as parent for child controls."""
+    if parent is None:
+        return _get_fallback_parent()
     if hasattr(parent, '_panel'):
         return parent._panel
     elif hasattr(parent, 'handle'):
@@ -198,12 +358,13 @@ def _get_wx_parent(parent):
 
 # Label
 class PLabel(PComponent, ControlMixin):
-    def __init__(self, parent):
+    def __init__(self, parent=None):
         real_parent = _get_wx_parent(parent)
         handle = wx.StaticText(real_parent, -1, "")
         super().__init__(handle)
         self.parent = parent
         self._caption = ""
+        self._font = PFont(owner=self)
         
     def get_caption(self):
         return self._caption
@@ -214,7 +375,7 @@ class PLabel(PComponent, ControlMixin):
 
 # Button
 class PButton(PComponent, ControlMixin):
-    def __init__(self, parent):
+    def __init__(self, parent=None):
         real_parent = _get_wx_parent(parent)
         handle = wx.Button(real_parent, -1, "Button")
         super().__init__(handle)
@@ -229,7 +390,7 @@ class PButton(PComponent, ControlMixin):
 
 # Edit (TextBox)
 class PEdit(PComponent, ControlMixin):
-    def __init__(self, parent):
+    def __init__(self, parent=None):
         real_parent = _get_wx_parent(parent)
         handle = wx.TextCtrl(real_parent, -1, "")
         super().__init__(handle)
@@ -247,7 +408,7 @@ class PEdit(PComponent, ControlMixin):
 
 # ComboBox
 class PComboBox(PComponent, ControlMixin):
-    def __init__(self, parent):
+    def __init__(self, parent=None):
         real_parent = _get_wx_parent(parent)
         handle = wx.ComboBox(real_parent, -1, "", choices=[], style=wx.CB_DROPDOWN)
         super().__init__(handle)
@@ -278,7 +439,7 @@ class PComboBox(PComponent, ControlMixin):
 
 # ListBox
 class PListBox(PComponent, ControlMixin):
-    def __init__(self, parent):
+    def __init__(self, parent=None):
         real_parent = _get_wx_parent(parent)
         handle = wx.ListBox(real_parent, -1, choices=[])
         super().__init__(handle)
@@ -300,7 +461,7 @@ class PListBox(PComponent, ControlMixin):
 
 # CheckBox
 class PCheckBox(PComponent, ControlMixin):
-    def __init__(self, parent):
+    def __init__(self, parent=None):
         real_parent = _get_wx_parent(parent)
         handle = wx.CheckBox(real_parent, -1, "Check")
         super().__init__(handle)
@@ -321,7 +482,7 @@ class PCheckBox(PComponent, ControlMixin):
 
 # RadioButton
 class PRadioButton(PComponent, ControlMixin):
-    def __init__(self, parent):
+    def __init__(self, parent=None):
         # In wx, radio buttons in same parent with same style are auto-grouped
         real_parent = _get_wx_parent(parent)
         handle = wx.RadioButton(real_parent, -1, "Option", style=wx.RB_GROUP)
@@ -343,7 +504,7 @@ class PRadioButton(PComponent, ControlMixin):
 
 # GroupBox
 class PGroupBox(PComponent, ControlMixin):
-    def __init__(self, parent):
+    def __init__(self, parent=None):
         # Determine the actual parent window/panel
         if hasattr(parent, '_panel'):
             real_parent = parent._panel
@@ -369,7 +530,7 @@ class PGroupBox(PComponent, ControlMixin):
 
 # TabControl & TabItem
 class PTabItem(PComponent, ControlMixin):
-    def __init__(self, parent):
+    def __init__(self, parent=None):
         # PTabItem is logically a page in wx.Notebook
         # We create a panel that will be added to the notebook
         self._panel = wx.Panel(parent.handle)
@@ -378,28 +539,35 @@ class PTabItem(PComponent, ControlMixin):
         super().__init__(self._panel)
         self.parent = parent
         self._caption = "Tab"
+        self._page_index = None
+        if self.parent and hasattr(self.parent, 'add_tab'):
+            self._page_index = self.parent.add_tab(self)
 
     def get_caption(self):
         return self._caption
     def set_caption(self, val):
         self._caption = val
-        # Find index and set page text
         if self.parent and self.parent.handle:
-            idx = self.parent.handle.GetPageCount() - 1 # Assuming added immediately
-            # This is tricky because we need to know the index. 
-            # Better to set caption when adding to notebook.
+            idx = self._page_index
+            if idx is None:
+                idx = self.parent.handle.FindPage(self._panel)
+            if idx != wx.NOT_FOUND and idx is not None:
+                self.parent.handle.SetPageText(idx, self._caption)
     caption = property(get_caption, set_caption)
 
 class PTabControl(PComponent, ControlMixin):
-    def __init__(self, parent):
+    def __init__(self, parent=None):
         real_parent = _get_wx_parent(parent)
         handle = wx.Notebook(real_parent, -1)
         super().__init__(handle)
         self.parent = parent
+        self._tabs = []
         handle.Bind(wx.EVT_NOTEBOOK_PAGE_CHANGED, lambda e: self.trigger_event('onchange'))
 
     def add_tab(self, tab_item):
         self.handle.AddPage(tab_item._panel, tab_item._caption)
+        self._tabs.append(tab_item)
+        return self.handle.GetPageCount() - 1
         
     def get_selectedindex(self):
         return self.handle.GetSelection()
@@ -409,7 +577,7 @@ class PTabControl(PComponent, ControlMixin):
 
 # ListView
 class PListView(PComponent, ControlMixin):
-    def __init__(self, parent):
+    def __init__(self, parent=None):
         real_parent = _get_wx_parent(parent)
         handle = wx.ListCtrl(real_parent, -1, style=wx.LC_REPORT | wx.LC_SINGLE_SEL)
         super().__init__(handle)
@@ -418,6 +586,8 @@ class PListView(PComponent, ControlMixin):
         handle.Bind(wx.EVT_LIST_ITEM_ACTIVATED, lambda e: self.trigger_event('ondblclick'))
         handle.Bind(wx.EVT_RIGHT_DOWN, self._on_right_click)
         self._context_menu = None
+        # Match tkinter runtime behavior: start with one default visible column.
+        self.addcolumn("Item", 150)
 
     def _on_right_click(self, event):
         if self._context_menu:
@@ -431,11 +601,29 @@ class PListView(PComponent, ControlMixin):
         idx = self.handle.GetColumnCount()
         self.handle.InsertColumn(idx, header, width=width)
 
-    def addrow(self, items):
+    def additem(self, *values):
+        # If caller provides more values than existing columns, auto-expand
+        # to keep parity with permissive RapidP/tk behavior.
+        current_cols = self.handle.GetColumnCount()
+        if len(values) > current_cols:
+            for col_idx in range(current_cols, len(values)):
+                self.addcolumn(f"Column {col_idx + 1}", 120)
+
         idx = self.handle.GetItemCount()
-        self.handle.InsertItem(idx, str(items[0]) if items else "")
-        for i, val in enumerate(items[1:], 1):
+        self.handle.InsertItem(idx, str(values[0]) if values else "")
+        for i, val in enumerate(values[1:], 1):
             self.handle.SetItem(idx, i, str(val))
+        return idx
+
+    def additems(self, *items):
+        for item in items:
+            if isinstance(item, (list, tuple)):
+                self.additem(*item)
+            else:
+                self.additem(str(item))
+
+    def addrow(self, *values):
+        return self.additem(*values)
             
     def clear(self):
         self.handle.DeleteAllItems()
@@ -449,13 +637,15 @@ class PListView(PComponent, ControlMixin):
 
 # StringGrid
 class PStringGrid(PComponent, ControlMixin):
-    def __init__(self, parent):
+    def __init__(self, parent=None):
         real_parent = _get_wx_parent(parent)
-        handle = wx.grid.Grid(real_parent, -1)
+        handle = wxgrid.Grid(real_parent, -1)
+        # Grid must be explicitly created before row/column append operations.
+        handle.CreateGrid(0, 0)
         super().__init__(handle)
         self.parent = parent
-        handle.Bind(wx.grid.EVT_GRID_CELL_CHANGE, lambda e: self.trigger_event('onchange'))
-        handle.Bind(wx.grid.EVT_GRID_SELECT_CELL, lambda e: self.trigger_event('onclick'))
+        handle.Bind(wxgrid.EVT_GRID_CELL_CHANGED, lambda e: self.trigger_event('onchange'))
+        handle.Bind(wxgrid.EVT_GRID_SELECT_CELL, lambda e: self.trigger_event('onclick'))
         
         self._rows = 0
         self._cols = 0
@@ -464,6 +654,7 @@ class PStringGrid(PComponent, ControlMixin):
     def get_rows(self):
         return self._rows
     def set_rows(self, val):
+        val = max(0, int(val))
         if val > self._rows:
             self.handle.AppendRows(val - self._rows)
             # Extend internal data
@@ -473,7 +664,7 @@ class PStringGrid(PComponent, ControlMixin):
                 else:
                     self._data.append([""] * len(self._data[0]))
         elif val < self._rows:
-            self.handle.DeleteRows(self._rows - val, val)
+            self.handle.DeleteRows(val, self._rows - val)
             self._data = self._data[:val]
         self._rows = val
     rows = property(get_rows, set_rows)
@@ -481,6 +672,7 @@ class PStringGrid(PComponent, ControlMixin):
     def get_cols(self):
         return self._cols
     def set_cols(self, val):
+        val = max(0, int(val))
         if val > self._cols:
             self.handle.AppendCols(val - self._cols)
             # Extend internal data rows
@@ -488,7 +680,7 @@ class PStringGrid(PComponent, ControlMixin):
                 while len(row) < val:
                     row.append("")
         elif val < self._cols:
-            self.handle.DeleteCols(self._cols - val, val)
+            self.handle.DeleteCols(val, self._cols - val)
             for row in self._data:
                 del row[val:]
         self._cols = val
@@ -521,7 +713,7 @@ class PStringGrid(PComponent, ControlMixin):
 
 # ProgressBar
 class PProgressBar(PComponent, ControlMixin):
-    def __init__(self, parent):
+    def __init__(self, parent=None):
         real_parent = _get_wx_parent(parent)
         handle = wx.Gauge(real_parent, -1, 100)
         super().__init__(handle)
@@ -536,6 +728,8 @@ class PProgressBar(PComponent, ControlMixin):
 # Timer
 class PTimer(PComponent):
     def __init__(self, parent=None):
+        # wx.Timer requires an existing wx.App.
+        get_app()
         super().__init__()
         self._timer = wx.Timer()
         self._interval = 1000
@@ -556,7 +750,7 @@ class PTimer(PComponent):
 
 # StatusBar
 class PStatusBar(PComponent):
-    def __init__(self, parent):
+    def __init__(self, parent=None):
         # Create a status bar on the frame
         sb = parent._frame.CreateStatusBar()
         super().__init__(sb)
@@ -598,7 +792,7 @@ class PMenuItem(PComponent):
             # But wx needs an ID. We'll store the ID for binding later if required.
 
 class PMainMenu(PComponent):
-    def __init__(self, parent):
+    def __init__(self, parent=None):
         super().__init__()
         self.parent = parent
         self._items = []
@@ -616,7 +810,7 @@ class PMainMenu(PComponent):
 
 # RichEdit (Simple Multiline TextCtrl)
 class PRichEdit(PComponent, ControlMixin):
-    def __init__(self, parent):
+    def __init__(self, parent=None):
         real_parent = _get_wx_parent(parent)
         handle = wx.TextCtrl(real_parent, -1, "", style=wx.TE_MULTILINE | wx.TE_RICH2)
         super().__init__(handle)
@@ -630,7 +824,7 @@ class PRichEdit(PComponent, ControlMixin):
 
 # Panel
 class PPanel(PComponent, ControlMixin):
-    def __init__(self, parent):
+    def __init__(self, parent=None):
         real_parent = _get_wx_parent(parent)
         handle = wx.Panel(real_parent, -1)
         super().__init__(handle)
@@ -640,7 +834,7 @@ class PPanel(PComponent, ControlMixin):
 
 # TrackBar (Slider)
 class PTrackBar(PComponent, ControlMixin):
-    def __init__(self, parent):
+    def __init__(self, parent=None):
         real_parent = _get_wx_parent(parent)
         handle = wx.Slider(real_parent, -1, 0, 0, 100, style=wx.SL_HORIZONTAL)
         super().__init__(handle)

@@ -41,10 +41,19 @@ def main():
     argparser.add_argument("-b", "--bytecode", action="store_true", help="Compile to Python bytecode (.pyc)")
     argparser.add_argument("-s", "--standalone", action="store_true", help="Build standalone executable via PyInstaller")
     argparser.add_argument("--wx", action="store_true", help="Generate wxPython version instead of tkinter")
+    argparser.add_argument("--ww", action="store_true", help="Generate pywebview (serverless) version instead of tkinter")
     argparser.add_argument("--encoding", default="utf-8", help="Source file encoding (default: utf-8, use latin-1 for legacy files)")
     argparser.add_argument("--json-errors", action="store_true", help="Output errors as JSON array (for IDE integration)")
 
     args = argparser.parse_args()
+
+    if args.wx and args.ww:
+        if args.json_errors:
+            import json
+            print(json.dumps([{"type": "compile", "file": args.source, "line": 0, "col": 0, "message": "Options --wx and --ww are mutually exclusive."}]))
+        else:
+            print("Error: options --wx and --ww are mutually exclusive.")
+        sys.exit(1)
 
     if not os.path.isfile(args.source):
         if args.json_errors:
@@ -67,6 +76,9 @@ def main():
             # Ensure run_app is called correctly for wx
             if 'get_app().run()' in py_code:
                 py_code = py_code.replace('get_app().run()', 'run_app()')
+        elif args.ww:
+            # Replace tkinter import with pywebview runtime (serverless mode utilities).
+            py_code = py_code.replace('from rp_runtime.gui import', 'from rp_runtime.gui_webview import')
 
         # Handle semantic errors
         if errors.has_errors:
@@ -90,7 +102,7 @@ def main():
             f.write(py_code)
 
         if not args.json_errors:
-            backend = "wxPython" if args.wx else "tkinter"
+            backend = "wxPython" if args.wx else ("pywebview" if args.ww else "tkinter")
             print(f"Successfully compiled '{args.source}' to '{output_file}' ({backend} backend)")
 
         if args.bytecode:
