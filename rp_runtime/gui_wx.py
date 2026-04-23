@@ -42,22 +42,10 @@ def quit_app():
 # Base Component Class
 class PComponent:
     def __init__(self, handle=None):
-        object.__setattr__(self, 'handle', handle)
-        object.__setattr__(self, '_events', {})
-        object.__setattr__(self, '_tag', None)
-        object.__setattr__(self, '_font', PFont(owner=self))
-
-    def __setattr__(self, name, value):
-        # RapidP transpiled code commonly assigns handlers as attributes:
-        # control.onclick = fn, form.onload = fn, timer.ontimer = fn, etc.
-        if name.startswith('on') and callable(value):
-            self.bind_event(name, value)
-        object.__setattr__(self, name, value)
-
-    def __getattr__(self, name):
-        if name.startswith('on'):
-            return self._events.get(name)
-        raise AttributeError(f"{type(self).__name__!s} object has no attribute {name!r}")
+        self.handle = handle
+        self._events = {}
+        self._tag = None
+        self._font = PFont(owner=self)
     
     def set_tag(self, tag):
         self._tag = tag
@@ -613,8 +601,6 @@ class PStringGrid(PComponent, ControlMixin):
     def __init__(self, parent):
         real_parent = _get_wx_parent(parent)
         handle = wxgrid.Grid(real_parent, -1)
-        # Grid must be explicitly created before row/column append operations.
-        handle.CreateGrid(0, 0)
         super().__init__(handle)
         self.parent = parent
         handle.Bind(wxgrid.EVT_GRID_CELL_CHANGED, lambda e: self.trigger_event('onchange'))
