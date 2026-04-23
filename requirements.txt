@@ -3,6 +3,7 @@ tkhtmlview
 pygame
 pillow
 pyinstaller
+pywebview
 numpy
 matplotlib
 pandas
