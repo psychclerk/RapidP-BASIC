@@ -547,6 +547,8 @@ class PListView(PComponent, ControlMixin):
         handle.Bind(wx.EVT_LIST_ITEM_ACTIVATED, lambda e: self.trigger_event('ondblclick'))
         handle.Bind(wx.EVT_RIGHT_DOWN, self._on_right_click)
         self._context_menu = None
+        # Match tkinter runtime behavior: start with one default visible column.
+        self.addcolumn("Item", 150)
 
     def _on_right_click(self, event):
         if self._context_menu:
@@ -560,11 +562,22 @@ class PListView(PComponent, ControlMixin):
         idx = self.handle.GetColumnCount()
         self.handle.InsertColumn(idx, header, width=width)
 
-    def addrow(self, items):
+    def additem(self, *values):
         idx = self.handle.GetItemCount()
-        self.handle.InsertItem(idx, str(items[0]) if items else "")
-        for i, val in enumerate(items[1:], 1):
+        self.handle.InsertItem(idx, str(values[0]) if values else "")
+        for i, val in enumerate(values[1:], 1):
             self.handle.SetItem(idx, i, str(val))
+        return idx
+
+    def additems(self, *items):
+        for item in items:
+            if isinstance(item, (list, tuple)):
+                self.additem(*item)
+            else:
+                self.additem(str(item))
+
+    def addrow(self, *values):
+        return self.additem(*values)
             
     def clear(self):
         self.handle.DeleteAllItems()
