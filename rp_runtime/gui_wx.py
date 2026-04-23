@@ -172,8 +172,13 @@ class PForm(PComponent):
         wx.CallAfter(self.trigger_event, 'onload')
 
     def showmodal(self):
-        # wxPython modal is different, we simulate by disabling parent if any
-        self._frame.ShowModal() if self._frame.GetParent() else self.show()
+        # RapidP expects ShowModal on the main form to block until closed.
+        # wx.Frame has no ShowModal(), so we show the frame and run the app loop
+        # if it is not already running.
+        self.show()
+        app = get_app()
+        if not app.IsMainLoopRunning():
+            app.MainLoop()
 
     def hide(self):
         self._frame.Hide()
@@ -578,7 +583,7 @@ class PStringGrid(PComponent, ControlMixin):
         handle = wxgrid.Grid(real_parent, -1)
         super().__init__(handle)
         self.parent = parent
-        handle.Bind(wxgrid.EVT_GRID_CELL_CHANGE, lambda e: self.trigger_event('onchange'))
+        handle.Bind(wxgrid.EVT_GRID_CELL_CHANGED, lambda e: self.trigger_event('onchange'))
         handle.Bind(wxgrid.EVT_GRID_SELECT_CELL, lambda e: self.trigger_event('onclick'))
         
         self._rows = 0
@@ -588,6 +593,7 @@ class PStringGrid(PComponent, ControlMixin):
     def get_rows(self):
         return self._rows
     def set_rows(self, val):
+        val = max(0, int(val))
         if val > self._rows:
             self.handle.AppendRows(val - self._rows)
             # Extend internal data
@@ -597,7 +603,7 @@ class PStringGrid(PComponent, ControlMixin):
                 else:
                     self._data.append([""] * len(self._data[0]))
         elif val < self._rows:
-            self.handle.DeleteRows(self._rows - val, val)
+            self.handle.DeleteRows(val, self._rows - val)
             self._data = self._data[:val]
         self._rows = val
     rows = property(get_rows, set_rows)
@@ -605,6 +611,7 @@ class PStringGrid(PComponent, ControlMixin):
     def get_cols(self):
         return self._cols
     def set_cols(self, val):
+        val = max(0, int(val))
         if val > self._cols:
             self.handle.AppendCols(val - self._cols)
             # Extend internal data rows
@@ -612,7 +619,7 @@ class PStringGrid(PComponent, ControlMixin):
                 while len(row) < val:
                     row.append("")
         elif val < self._cols:
-            self.handle.DeleteCols(self._cols - val, val)
+            self.handle.DeleteCols(val, self._cols - val)
             for row in self._data:
                 del row[val:]
         self._cols = val
