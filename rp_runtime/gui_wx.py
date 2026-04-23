@@ -507,16 +507,20 @@ class PTabItem(PComponent, ControlMixin):
         super().__init__(self._panel)
         self.parent = parent
         self._caption = "Tab"
+        self._page_index = None
+        if self.parent and hasattr(self.parent, 'add_tab'):
+            self._page_index = self.parent.add_tab(self)
 
     def get_caption(self):
         return self._caption
     def set_caption(self, val):
         self._caption = val
-        # Find index and set page text
         if self.parent and self.parent.handle:
-            idx = self.parent.handle.GetPageCount() - 1 # Assuming added immediately
-            # This is tricky because we need to know the index. 
-            # Better to set caption when adding to notebook.
+            idx = self._page_index
+            if idx is None:
+                idx = self.parent.handle.FindPage(self._panel)
+            if idx != wx.NOT_FOUND and idx is not None:
+                self.parent.handle.SetPageText(idx, self._caption)
     caption = property(get_caption, set_caption)
 
 class PTabControl(PComponent, ControlMixin):
@@ -525,10 +529,13 @@ class PTabControl(PComponent, ControlMixin):
         handle = wx.Notebook(real_parent, -1)
         super().__init__(handle)
         self.parent = parent
+        self._tabs = []
         handle.Bind(wx.EVT_NOTEBOOK_PAGE_CHANGED, lambda e: self.trigger_event('onchange'))
 
     def add_tab(self, tab_item):
         self.handle.AddPage(tab_item._panel, tab_item._caption)
+        self._tabs.append(tab_item)
+        return self.handle.GetPageCount() - 1
         
     def get_selectedindex(self):
         return self.handle.GetSelection()
@@ -547,6 +554,8 @@ class PListView(PComponent, ControlMixin):
         handle.Bind(wx.EVT_LIST_ITEM_ACTIVATED, lambda e: self.trigger_event('ondblclick'))
         handle.Bind(wx.EVT_RIGHT_DOWN, self._on_right_click)
         self._context_menu = None
+        # Match tkinter runtime behavior: start with one default visible column.
+        self.addcolumn("Item", 150)
 
     def _on_right_click(self, event):
         if self._context_menu:
@@ -560,11 +569,22 @@ class PListView(PComponent, ControlMixin):
         idx = self.handle.GetColumnCount()
         self.handle.InsertColumn(idx, header, width=width)
 
-    def addrow(self, items):
+    def additem(self, *values):
         idx = self.handle.GetItemCount()
-        self.handle.InsertItem(idx, str(items[0]) if items else "")
-        for i, val in enumerate(items[1:], 1):
+        self.handle.InsertItem(idx, str(values[0]) if values else "")
+        for i, val in enumerate(values[1:], 1):
             self.handle.SetItem(idx, i, str(val))
+        return idx
+
+    def additems(self, *items):
+        for item in items:
+            if isinstance(item, (list, tuple)):
+                self.additem(*item)
+            else:
+                self.additem(str(item))
+
+    def addrow(self, *values):
+        return self.additem(*values)
             
     def clear(self):
         self.handle.DeleteAllItems()
