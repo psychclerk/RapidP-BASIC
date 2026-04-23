@@ -21,6 +21,16 @@ def _bgr_to_wx_colour(value):
         return wx.Colour(r, g, b)
     return None
 
+
+def _bgr_to_wx_colour(value):
+    """Convert RapidP BGR integer to wx.Colour."""
+    if isinstance(value, int):
+        r = value & 0xFF
+        g = (value >> 8) & 0xFF
+        b = (value >> 16) & 0xFF
+        return wx.Colour(r, g, b)
+    return None
+
 def get_app():
     global _app
     if _app is None:
@@ -53,29 +63,10 @@ def _get_fallback_parent():
 # Base Component Class
 class PComponent:
     def __init__(self, handle=None):
-        object.__setattr__(self, 'handle', handle)
-        object.__setattr__(self, '_events', {})
-        object.__setattr__(self, '_tag', None)
-        object.__setattr__(self, '_font', PFont(owner=self))
-
-    def __setattr__(self, name, value):
-        # RapidP transpiled code commonly assigns handlers as attributes:
-        # control.onclick = fn, form.onload = fn, timer.ontimer = fn, etc.
-        if name.startswith('on') and callable(value):
-            self.bind_event(name, value)
-        if name == 'parent':
-            handle = getattr(self, 'handle', None)
-            if handle and value is not None:
-                try:
-                    handle.Reparent(_get_wx_parent(value))
-                except Exception:
-                    pass
-        object.__setattr__(self, name, value)
-
-    def __getattr__(self, name):
-        if name.startswith('on'):
-            return self._events.get(name)
-        raise AttributeError(f"{type(self).__name__!s} object has no attribute {name!r}")
+        self.handle = handle
+        self._events = {}
+        self._tag = None
+        self._font = PFont(owner=self)
     
     def set_tag(self, tag):
         self._tag = tag
@@ -602,13 +593,6 @@ class PListView(PComponent, ControlMixin):
         self.handle.InsertColumn(idx, header, width=width)
 
     def additem(self, *values):
-        # If caller provides more values than existing columns, auto-expand
-        # to keep parity with permissive RapidP/tk behavior.
-        current_cols = self.handle.GetColumnCount()
-        if len(values) > current_cols:
-            for col_idx in range(current_cols, len(values)):
-                self.addcolumn(f"Column {col_idx + 1}", 120)
-
         idx = self.handle.GetItemCount()
         self.handle.InsertItem(idx, str(values[0]) if values else "")
         for i, val in enumerate(values[1:], 1):
@@ -640,8 +624,6 @@ class PStringGrid(PComponent, ControlMixin):
     def __init__(self, parent=None):
         real_parent = _get_wx_parent(parent)
         handle = wxgrid.Grid(real_parent, -1)
-        # Grid must be explicitly created before row/column append operations.
-        handle.CreateGrid(0, 0)
         super().__init__(handle)
         self.parent = parent
         handle.Bind(wxgrid.EVT_GRID_CELL_CHANGED, lambda e: self.trigger_event('onchange'))
