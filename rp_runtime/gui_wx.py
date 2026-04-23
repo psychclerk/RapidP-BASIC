@@ -3,11 +3,22 @@ RapidP-BASIC wxPython GUI Runtime
 Mirrors the interface of gui.py (tkinter) for wxPython backend
 """
 import wx
+import wx.grid as wxgrid
 import datetime
 import os
 
 # Global app instance
 _app = None
+
+
+def _bgr_to_wx_colour(value):
+    """Convert RapidP BGR integer to wx.Colour."""
+    if isinstance(value, int):
+        r = value & 0xFF
+        g = (value >> 8) & 0xFF
+        b = (value >> 16) & 0xFF
+        return wx.Colour(r, g, b)
+    return None
 
 def get_app():
     global _app
@@ -34,6 +45,7 @@ class PComponent:
         self.handle = handle
         self._events = {}
         self._tag = None
+        self._font = PFont(owner=self)
     
     def set_tag(self, tag):
         self._tag = tag
@@ -47,6 +59,86 @@ class PComponent:
     def trigger_event(self, event_name, *args):
         if event_name in self._events:
             self._events[event_name](*args)
+
+
+class PFont:
+    """RapidP-compatible font object for wx controls."""
+    def __init__(self, owner=None):
+        self._owner = owner
+        self._name = "Segoe UI" if os.name == "nt" else "Helvetica"
+        self._size = 9
+        self._color = 0
+        self._bold = 0
+        self._italic = 0
+        self._underline = 0
+        self._strikeout = 0
+
+    def _apply(self):
+        if self._owner is not None and hasattr(self._owner, "_apply_font"):
+            self._owner._apply_font()
+
+    @property
+    def name(self):
+        return self._name
+
+    @name.setter
+    def name(self, value):
+        self._name = str(value)
+        self._apply()
+
+    @property
+    def size(self):
+        return self._size
+
+    @size.setter
+    def size(self, value):
+        self._size = int(value)
+        self._apply()
+
+    @property
+    def color(self):
+        return self._color
+
+    @color.setter
+    def color(self, value):
+        self._color = int(value) if value else 0
+        self._apply()
+
+    @property
+    def bold(self):
+        return self._bold
+
+    @bold.setter
+    def bold(self, value):
+        self._bold = int(value)
+        self._apply()
+
+    @property
+    def italic(self):
+        return self._italic
+
+    @italic.setter
+    def italic(self, value):
+        self._italic = int(value)
+        self._apply()
+
+    @property
+    def underline(self):
+        return self._underline
+
+    @underline.setter
+    def underline(self, value):
+        self._underline = int(value)
+        self._apply()
+
+    @property
+    def strikeout(self):
+        return self._strikeout
+
+    @strikeout.setter
+    def strikeout(self, value):
+        self._strikeout = int(value)
+        self._apply()
 
 # Form
 class PForm(PComponent):
@@ -80,8 +172,13 @@ class PForm(PComponent):
         wx.CallAfter(self.trigger_event, 'onload')
 
     def showmodal(self):
-        # wxPython modal is different, we simulate by disabling parent if any
-        self._frame.ShowModal() if self._frame.GetParent() else self.show()
+        # RapidP expects ShowModal on the main form to block until closed.
+        # wx.Frame has no ShowModal(), so we show the frame and run the app loop
+        # if it is not already running.
+        self.show()
+        app = get_app()
+        if not app.IsMainLoopRunning():
+            app.MainLoop()
 
     def hide(self):
         self._frame.Hide()
@@ -130,6 +227,37 @@ class PForm(PComponent):
 
 # Common properties mixin for controls
 class ControlMixin:
+    @property
+    def font(self):
+        return self._font
+
+    @font.setter
+    def font(self, value):
+        self._font = value
+        self._apply_font()
+
+    def _apply_font(self):
+        if not getattr(self, "handle", None):
+            return
+        try:
+            weight = wx.FONTWEIGHT_BOLD if self._font.bold else wx.FONTWEIGHT_NORMAL
+            style = wx.FONTSTYLE_ITALIC if self._font.italic else wx.FONTSTYLE_NORMAL
+            font = wx.Font(
+                self._font.size,
+                wx.FONTFAMILY_DEFAULT,
+                style,
+                weight,
+                bool(self._font.underline),
+                self._font.name
+            )
+            self.handle.SetFont(font)
+            fg = _bgr_to_wx_colour(self._font.color)
+            if fg is not None:
+                self.handle.SetForegroundColour(fg)
+        except Exception:
+            # Keep behavior non-fatal for controls that don't support font operations.
+            pass
+
     def get_left(self):
         # wx doesn't expose left/top easily without sizers, using dummy for now or GetPosition if not in sizer
         # For proper layout, wx uses Sizers. RapidP BASIC usually uses absolute.
@@ -204,6 +332,7 @@ class PLabel(PComponent, ControlMixin):
         super().__init__(handle)
         self.parent = parent
         self._caption = ""
+        self._font = PFont(owner=self)
         
     def get_caption(self):
         return self._caption
@@ -418,6 +547,8 @@ class PListView(PComponent, ControlMixin):
         handle.Bind(wx.EVT_LIST_ITEM_ACTIVATED, lambda e: self.trigger_event('ondblclick'))
         handle.Bind(wx.EVT_RIGHT_DOWN, self._on_right_click)
         self._context_menu = None
+        # Match tkinter runtime behavior: start with one default visible column.
+        self.addcolumn("Item", 150)
 
     def _on_right_click(self, event):
         if self._context_menu:
@@ -431,11 +562,22 @@ class PListView(PComponent, ControlMixin):
         idx = self.handle.GetColumnCount()
         self.handle.InsertColumn(idx, header, width=width)
 
-    def addrow(self, items):
+    def additem(self, *values):
         idx = self.handle.GetItemCount()
-        self.handle.InsertItem(idx, str(items[0]) if items else "")
-        for i, val in enumerate(items[1:], 1):
+        self.handle.InsertItem(idx, str(values[0]) if values else "")
+        for i, val in enumerate(values[1:], 1):
             self.handle.SetItem(idx, i, str(val))
+        return idx
+
+    def additems(self, *items):
+        for item in items:
+            if isinstance(item, (list, tuple)):
+                self.additem(*item)
+            else:
+                self.additem(str(item))
+
+    def addrow(self, *values):
+        return self.additem(*values)
             
     def clear(self):
         self.handle.DeleteAllItems()
@@ -451,11 +593,13 @@ class PListView(PComponent, ControlMixin):
 class PStringGrid(PComponent, ControlMixin):
     def __init__(self, parent):
         real_parent = _get_wx_parent(parent)
-        handle = wx.grid.Grid(real_parent, -1)
+        handle = wxgrid.Grid(real_parent, -1)
+        # Grid must be explicitly created before row/column append operations.
+        handle.CreateGrid(0, 0)
         super().__init__(handle)
         self.parent = parent
-        handle.Bind(wx.grid.EVT_GRID_CELL_CHANGE, lambda e: self.trigger_event('onchange'))
-        handle.Bind(wx.grid.EVT_GRID_SELECT_CELL, lambda e: self.trigger_event('onclick'))
+        handle.Bind(wxgrid.EVT_GRID_CELL_CHANGED, lambda e: self.trigger_event('onchange'))
+        handle.Bind(wxgrid.EVT_GRID_SELECT_CELL, lambda e: self.trigger_event('onclick'))
         
         self._rows = 0
         self._cols = 0
@@ -464,6 +608,7 @@ class PStringGrid(PComponent, ControlMixin):
     def get_rows(self):
         return self._rows
     def set_rows(self, val):
+        val = max(0, int(val))
         if val > self._rows:
             self.handle.AppendRows(val - self._rows)
             # Extend internal data
@@ -473,7 +618,7 @@ class PStringGrid(PComponent, ControlMixin):
                 else:
                     self._data.append([""] * len(self._data[0]))
         elif val < self._rows:
-            self.handle.DeleteRows(self._rows - val, val)
+            self.handle.DeleteRows(val, self._rows - val)
             self._data = self._data[:val]
         self._rows = val
     rows = property(get_rows, set_rows)
@@ -481,6 +626,7 @@ class PStringGrid(PComponent, ControlMixin):
     def get_cols(self):
         return self._cols
     def set_cols(self, val):
+        val = max(0, int(val))
         if val > self._cols:
             self.handle.AppendCols(val - self._cols)
             # Extend internal data rows
@@ -488,7 +634,7 @@ class PStringGrid(PComponent, ControlMixin):
                 while len(row) < val:
                     row.append("")
         elif val < self._cols:
-            self.handle.DeleteCols(self._cols - val, val)
+            self.handle.DeleteCols(val, self._cols - val)
             for row in self._data:
                 del row[val:]
         self._cols = val

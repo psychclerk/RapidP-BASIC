@@ -770,7 +770,12 @@ class PLabel(PWidget):
      @caption.setter
      def caption(self, value):
          self._caption = str(value).replace('&', '')
-         self.widget.config(text=self._caption)
+         if self.widget:
+             try:
+                 self.widget.config(text=self._caption)
+             except tk.TclError:
+                 # Widget may already be destroyed by the time late events fire.
+                 pass
      
      @property
      def alignment(self): return self._alignment
