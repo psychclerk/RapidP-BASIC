@@ -5,7 +5,7 @@
 [![Python 3.10+](https://img.shields.io/badge/Python-3.10%2B-blue.svg)](https://www.python.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
-#### (Note: As of April 8, 2026, I've decided to put this project on hold indefinitely. The transpiler and runtime are mostly complete, but I no longer have the time or motivation to maintain it. I'll keep the repository public for anyone interested in exploring or building upon it, but I won't be adding new features or fixing bugs. Meanwhile, I am dedicating "a little" time to continue RapidR a BASIC-to-Rust Transpiler & Runtime. Thanks!)
+THIS IS AN UPDATED VERSION - ALBIET AI GENERATED CODE WITH WORKING LISTVIEWS, and OPTION TO CREATE WXPYTHON CODE USING --WX OPTION
 
 
 **RapidP** is an experiment in building a full-featured BASIC-to-Python transpiler and runtime framework. It reads `.rp` BASIC language like source files and produces modern, executable **Python 3** code.
