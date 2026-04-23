@@ -594,8 +594,6 @@ class PStringGrid(PComponent, ControlMixin):
     def __init__(self, parent):
         real_parent = _get_wx_parent(parent)
         handle = wxgrid.Grid(real_parent, -1)
-        # Grid must be explicitly created before row/column append operations.
-        handle.CreateGrid(0, 0)
         super().__init__(handle)
         self.parent = parent
         handle.Bind(wxgrid.EVT_GRID_CELL_CHANGED, lambda e: self.trigger_event('onchange'))
