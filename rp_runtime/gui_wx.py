@@ -519,16 +519,20 @@ class PTabItem(PComponent, ControlMixin):
         super().__init__(self._panel)
         self.parent = parent
         self._caption = "Tab"
+        self._page_index = None
+        if self.parent and hasattr(self.parent, 'add_tab'):
+            self._page_index = self.parent.add_tab(self)
 
     def get_caption(self):
         return self._caption
     def set_caption(self, val):
         self._caption = val
-        # Find index and set page text
         if self.parent and self.parent.handle:
-            idx = self.parent.handle.GetPageCount() - 1 # Assuming added immediately
-            # This is tricky because we need to know the index. 
-            # Better to set caption when adding to notebook.
+            idx = self._page_index
+            if idx is None:
+                idx = self.parent.handle.FindPage(self._panel)
+            if idx != wx.NOT_FOUND and idx is not None:
+                self.parent.handle.SetPageText(idx, self._caption)
     caption = property(get_caption, set_caption)
 
 class PTabControl(PComponent, ControlMixin):
@@ -537,10 +541,13 @@ class PTabControl(PComponent, ControlMixin):
         handle = wx.Notebook(real_parent, -1)
         super().__init__(handle)
         self.parent = parent
+        self._tabs = []
         handle.Bind(wx.EVT_NOTEBOOK_PAGE_CHANGED, lambda e: self.trigger_event('onchange'))
 
     def add_tab(self, tab_item):
         self.handle.AddPage(tab_item._panel, tab_item._caption)
+        self._tabs.append(tab_item)
+        return self.handle.GetPageCount() - 1
         
     def get_selectedindex(self):
         return self.handle.GetSelection()
